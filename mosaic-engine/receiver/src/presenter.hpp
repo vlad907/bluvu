@@ -52,6 +52,9 @@ public:
     virtual std::string name() const = 0;
     // Creates the windows (replacing any before). False if it can't.
     virtual bool configure(const std::vector<WindowSpec>& windows, std::string& error) = 0;
+    // Forgets every stream's pictures (the streams were renumbered); windows keep what they show
+    // until they are presented again.
+    virtual void clearPictures() {}
     // Uploads new pictures (one per stream at most), each becoming its stream's newest; the
     // copies run in parallel.
     virtual void upload(const std::vector<Upload>& frames) = 0;

@@ -178,6 +178,7 @@ public:
     // Each stream has a ring of kPictureHistory textures. The textures are mapped here, on the
     // render thread, and the pixel copies (the slow part: ~17 MB per 4K picture) run on one
     // thread per picture, so four 4K streams take about as long as one.
+    void clearPictures() override { textures_.clear(); }
     void upload(const std::vector<Upload>& frames) override {
         struct Copy {
             uint8_t* dst;

@@ -94,6 +94,23 @@ int selfTest(double seconds) {
                   d2[3].value("heldRefreshes", -1) == 1,
               "held the other displays back one refresh");
         check(s2.value("screenSpreadNowMs", 99.0) < 8, "with compensation all displays show each frame together (under half a refresh apart)");
+        // Other streams on the same screens (another layout, a preset): the windows stay, and so
+        // does the hold-back, so the displays are in step from the first frame instead of after
+        // the several seconds it takes to measure again.
+        for (auto& d : cfg2["displays"]) d["synthetic"]["colour"] = 0xFF208040u;
+        from_json(cfg2, c2);
+        rx2.setConfig(c2);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        json s2b = rx2.status();
+        auto& d2b = s2b["displays"];
+        std::cout << "after a change of streams: held " << d2b[0].value("heldRefreshes", -1) << " " << d2b[1].value("heldRefreshes", -1) << " "
+                  << d2b[2].value("heldRefreshes", -1) << " " << d2b[3].value("heldRefreshes", -1) << ", apart now " << s2b.value("screenSpreadNowMs", -1.0)
+                  << " ms, windows made " << s2b.value("windowRebuilds", -1) << " time(s)\n";
+        check(s2b.value("windowRebuilds", 0) == 1, "a change of streams doesn't make the windows again");
+        check(d2b[0].value("heldRefreshes", -1) == 0 && d2b[1].value("heldRefreshes", -1) == 0 && d2b[2].value("heldRefreshes", -1) == 1 &&
+                  d2b[3].value("heldRefreshes", -1) == 1 && s2b.value("compensationChanges", 99) == s2.value("compensationChanges", 0),
+              "and the hold-back carries over");
+        check(d2b[0].value("framesShown", 0) > 20 && s2b.value("screenSpreadNowMs", 99.0) < 8, "so the displays are in step straight away");
     }
     // A slow GPU, like the venue's receiving PC: each window's present takes 4.5 ms, so presenting
     // all four every refresh (18 ms) can't keep up. Only displays whose picture changes are

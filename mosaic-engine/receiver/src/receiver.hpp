@@ -135,6 +135,8 @@ private:
         int want = 0, wantCount = 0;  // a different hold-back measured, and for how many seconds in a row
     };
     std::vector<WindowTrack> windows_;
+    std::vector<WindowSpec> windowSpecs_;  // the windows as last given to the presenter
+    uint64_t windowRebuilds_ = 0;          // times the windows were made again (a change of screens, not of streams)
     std::vector<int> windowStream_;  // per window: the stream of its first tile
     std::vector<uint64_t> drawn_;    // per window: what its last present showed (pictures, flash)
     std::vector<uint64_t> tileGen_, tileWant_;  // per tile: picture (gen) on screen; wanted this refresh

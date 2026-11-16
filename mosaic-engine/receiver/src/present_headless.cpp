@@ -28,6 +28,7 @@ public:
         counts_.assign(windows.size(), 0);
         return true;
     }
+    void clearPictures() override { pictures_.clear(); }
     void upload(const std::vector<Upload>& frames) override {
         if (!probe_) return;
         for (auto& u : frames) {

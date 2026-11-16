@@ -193,6 +193,8 @@ void Receiver::apply(const ReceiverConfig& c) {
     const size_t capacity = 8 + static_cast<size_t>(std::ceil(c.bufferMs * 60.0 / 1000.0));
     for (auto& s : streams_) {
         s.shownHold = nullptr;  // textures are per stream index: upload again
+        s.history.clear();
+        s.gen = 0;
         if (s.input) s.input->queue().setCapacity(capacity);
     }
 
@@ -217,10 +219,28 @@ void Receiver::apply(const ReceiverConfig& c) {
         t.ch = d.cropH;
         tiles_.push_back(t);
     }
-    std::string error;
-    if (!presenter_->configure(windows, error)) std::cerr << "[receiver] " << error << "\n";
+    // The windows are only made again when the screens changed. A change of streams alone (another
+    // layout, a preset, identify off) keeps them, with what each display was measured to need:
+    // making them again blanks the screens, and the hold-back that keeps the displays in step
+    // takes several seconds to measure again, during which they'd be a refresh apart.
+    auto sameRect = [](const WindowSpec& a, const WindowSpec& b) { return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h; };
+    bool sameWindows = windows.size() == windowSpecs_.size() && std::equal(windows.begin(), windows.end(), windowSpecs_.begin(), sameRect);
+    presenter_->clearPictures();
+    if (!sameWindows) {
+        std::string error;
+        if (!presenter_->configure(windows, error)) std::cerr << "[receiver] " << error << "\n";
+        ++windowRebuilds_;
+        // A screen that is still there keeps its hold-back; the measurements start over.
+        std::vector<WindowTrack> next(windows.size());
+        for (size_t w = 0; w < windows.size(); ++w)
+            for (size_t k = 0; k < windowSpecs_.size() && k < windows_.size(); ++k)
+                if (sameRect(windows[w], windowSpecs_[k])) next[w].hold = windows_[k].hold;
+        windows_ = std::move(next);
+        windowSpecs_ = windows;
+    } else {
+        for (auto& tr : windows_) tr.lastFrameId = tr.frameId = 0;
+    }
     presenter_->setProbe(c.probe);
-    windows_.assign(windows.size(), {});
     windowStream_.assign(windows.size(), -1);
     drawn_.assign(windows.size(), UINT64_MAX);  // every window is drawn once
     tileGen_.clear();
@@ -498,6 +518,7 @@ void Receiver::frame() {
                {"presentFps", presentFps_},
                {"windowPresentsPerS", windowPresentsPerS_},
                {"compensationChanges", holdChanges_},
+               {"windowRebuilds", windowRebuilds_},
                {"presentMsPerWindow", msPerWindow_},
                {"heldDeferred", deferred_},
                {"timing", timingOk ? "measured" : "not available"},
