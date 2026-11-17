@@ -50,6 +50,8 @@ public:
     // Which GPU a layout asks for, by number, found again by name if the numbering changed.
     int resolveGpu(const Layout& l) const;
     const std::filesystem::path& mediaDir() const { return mediaDir_; }
+    // NDI, for work outside any canvas (stream previews). Null when NDI isn't available.
+    NdiSystem* ndi() const { return ndi_; }
 
 private:
     LayoutStore& store_;

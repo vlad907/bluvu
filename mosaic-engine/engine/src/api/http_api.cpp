@@ -27,6 +27,8 @@
 #include "io/video_file.hpp"
 #include "core/engine.hpp"
 #include "core/layout_store.hpp"
+#include "io/video_io.hpp"
+#include "util/image.hpp"
 #include "util/paths.hpp"
 
 using nlohmann::json;
@@ -310,6 +312,64 @@ struct HttpApi::Impl {
     }
 
     // Last check-in of each receiving PC, by hostKey (not saved; they check in every few seconds).
+    // ---- stream previews: a small picture of any NDI stream, by name, for control panels ----
+    // A stream is received only while somebody asks for its picture. One already on a wall shares
+    // that connection; any other is connected for the preview and dropped a few seconds after the
+    // last request.
+    struct StreamPreview {
+        std::unique_ptr<NdiReceiver> rx;
+        std::mutex m;
+        std::string jpeg;
+        double made = 0;   // when the picture was made
+        double asked = 0;  // when it was last asked for
+    };
+    std::mutex streamPreviewMutex;
+    std::map<std::string, std::shared_ptr<StreamPreview>> streamPreviews;
+    static constexpr size_t kMaxStreamPreviews = 8;
+
+    // 0 = no NDI, 1 = no picture yet (try again shortly), 2 = jpeg filled in.
+    int streamPreviewJpeg(const std::string& name, std::string& jpeg, bool& signal) {
+        NdiSystem* ndi = canvases.ndi();
+        if (!ndi) return 0;
+        double now = nowSeconds();
+        std::shared_ptr<StreamPreview> p;
+        {
+            std::lock_guard l(streamPreviewMutex);
+            for (auto it = streamPreviews.begin(); it != streamPreviews.end();)
+                it = (it->first != name && now - it->second->asked > 6.0) ? streamPreviews.erase(it) : std::next(it);
+            auto it = streamPreviews.find(name);
+            if (it == streamPreviews.end()) {
+                if (streamPreviews.size() >= kMaxStreamPreviews) throw std::runtime_error("too many stream previews at once");
+                p = std::make_shared<StreamPreview>();
+                p->rx = ndi->createReceiver(name);
+                if (!p->rx) return 0;
+                streamPreviews[name] = p;
+            } else {
+                p = it->second;
+            }
+            p->asked = now;
+        }
+        std::lock_guard l(p->m);
+        if (now - p->made > 0.15) {  // at most ~6 new pictures a second, however many panels ask
+            InputFrame f;
+            if (p->rx->acquireLatest(f)) {
+                std::vector<uint8_t> bgra;
+                int w = 0, h = 0;
+                shrinkToBgra(f.data, f.width, f.height, f.stride, f.uyvy, 640, bgra, w, h);
+                p->rx->release(f);
+                std::string made = encodeJpegBGRA(bgra.data(), w, h, w * 4, 70);
+                if (!made.empty()) {
+                    p->jpeg = std::move(made);
+                    p->made = now;
+                }
+            }
+        }
+        signal = p->rx->connected();
+        if (p->jpeg.empty()) return 1;
+        jpeg = p->jpeg;
+        return 2;
+    }
+
     std::mutex checkinMutex;
     std::map<std::string, json> checkins;
     // Identify: until when (nowSeconds) each PC's screens show their numbers instead of their
@@ -780,6 +840,24 @@ struct HttpApi::Impl {
                 return;
             }
             res.set_header("Cache-Control", "no-store");
+            res.set_content(jpeg, "image/jpeg");
+        }));
+
+        // A small live picture of any NDI stream: /api/streams/preview.jpg?name=MACHINE (Stream).
+        // 202 until the first frame arrives (ask again shortly); X-Signal says whether it still sends.
+        s.Get("/api/streams/preview.jpg", guard([this](const httplib::Request& req, httplib::Response& res) {
+            std::string name = req.get_param_value("name");
+            if (name.empty()) return sendError(res, 400, "name is required: the stream's full NDI name");
+            std::string jpeg;
+            bool signal = false;
+            int got = streamPreviewJpeg(name, jpeg, signal);
+            if (got == 0) return sendError(res, 503, "NDI isn't available on this media server");
+            res.set_header("Cache-Control", "no-store");
+            res.set_header("X-Signal", signal ? "ok" : "lost");
+            if (got == 1) {
+                res.status = 202;
+                return;
+            }
             res.set_content(jpeg, "image/jpeg");
         }));
 

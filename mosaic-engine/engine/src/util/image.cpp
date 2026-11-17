@@ -1,5 +1,6 @@
 #include "util/image.hpp"
 
+#include <algorithm>
 #include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -49,6 +50,34 @@ void decodeUyvyToBgra(const uint8_t* src, int width, int height, int stride, std
                 d[0] = clamp8(255.0 * (yy + 1.8556 * cb));
                 d[3] = 255;
             }
+        }
+    }
+}
+
+void shrinkToBgra(const uint8_t* src, int width, int height, int stride, bool uyvy, int maxWidth, std::vector<uint8_t>& out, int& outW,
+                  int& outH) {
+    outW = std::max(1, std::min(width, maxWidth));
+    outH = std::max(1, static_cast<int>(static_cast<long long>(height) * outW / std::max(1, width)));
+    out.resize(static_cast<size_t>(outW) * outH * 4);
+    for (int y = 0; y < outH; ++y) {
+        const uint8_t* row = src + static_cast<size_t>(static_cast<long long>(y) * height / outH) * stride;
+        uint8_t* d = out.data() + static_cast<size_t>(y) * outW * 4;
+        for (int x = 0; x < outW; ++x, d += 4) {
+            int sx = static_cast<int>(static_cast<long long>(x) * width / outW);
+            if (uyvy) {
+                const uint8_t* s = row + static_cast<size_t>(sx / 2) * 4;  // U Y0 V Y1
+                double cb = (s[0] - 128.0) / 224.0, cr = (s[2] - 128.0) / 224.0;
+                double yy = (s[1 + 2 * (sx & 1)] - 16.0) / 219.0;
+                d[2] = clamp8(255.0 * (yy + 1.5748 * cr));
+                d[1] = clamp8(255.0 * (yy - 0.1873 * cb - 0.4681 * cr));
+                d[0] = clamp8(255.0 * (yy + 1.8556 * cb));
+            } else {
+                const uint8_t* s = row + static_cast<size_t>(sx) * 4;
+                d[0] = s[0];
+                d[1] = s[1];
+                d[2] = s[2];
+            }
+            d[3] = 255;
         }
     }
 }

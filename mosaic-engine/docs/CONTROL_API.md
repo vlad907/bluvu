@@ -79,6 +79,7 @@ their names.
 | Switch layout | `POST /api/layouts/{layout}/activate` |
 | The same, on another canvas (another wall) | add `?canvas=canvas-2` to any of the above |
 | List the canvases (every wall the media server runs) | `GET /api/canvases` |
+| A small live picture of any NDI stream | `GET /api/streams/preview.jpg?name=<NDI name>` |
 | Sound outputs: levels, delay, problems, devices | `GET /api/audio` |
 | Change a sound output's source, volume or mute | `PUT /api/layout` with `{"audioOutputs": [...]}` |
 | Is every display showing its picture? | `GET /api/control` (`endpoints`), `GET /api/metrics` (`outputs`) |
@@ -303,6 +304,21 @@ Replaces everything on the canvas, all groups at once, with a scene saved in the
 Switches to another saved layout. A layout includes the displays themselves, so use this for
 a different room setup, not for changing content. Body optional: `{"transitionMs": 1000}`
 (the fade only happens when both layouts have the same canvas size).
+
+### `GET /api/streams/preview.jpg?name=<NDI name>`
+
+A small JPEG (at most 640 wide) of what an NDI stream is sending right now, for a control panel that
+shows a source before or while it's on a wall, for example the picture of an Apple TV next to its
+remote. `name` is the stream's full NDI name, URL-encoded (`ZOWIEBOXPRO-54447%20(ZowieBox-54447)`).
+Ask again a few times a second for a moving picture; a new one is made at most about 6 times a second.
+
+- `202` with no body until the first frame arrives: ask again shortly.
+- The header `X-Signal` is `ok`, or `lost` when the stream has sent nothing for a second (the last
+  picture is still returned).
+- A stream that's already on a wall is not received twice. Any other is received at full quality
+  only while its picture is being asked for, and dropped about 6 seconds after the last request, so
+  a preview left open costs that stream's bandwidth. At most 8 streams at once.
+- `503` when NDI isn't available. No API key needed (it's a `GET`).
 
 ### `GET /api/health`
 
