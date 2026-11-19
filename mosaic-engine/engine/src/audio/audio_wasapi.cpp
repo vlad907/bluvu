@@ -49,10 +49,36 @@ std::wstring widen(const std::string& s) {
     return w;
 }
 
+// What a Windows audio error means, in words, for the ones worth explaining ("" otherwise).
+const char* meaning(HRESULT h) {
+    switch (static_cast<unsigned long>(h)) {
+        case 0x88890004UL: return "the device was unplugged or changed";                                        // AUDCLNT_E_DEVICE_INVALIDATED
+        case 0x8889000AUL: return "another program is using it in exclusive mode";                              // AUDCLNT_E_DEVICE_IN_USE
+        case 0x8889000FUL: return "Windows couldn't start it: check its driver, or unplug it and plug it back in";  // AUDCLNT_E_ENDPOINT_CREATE_FAILED
+        case 0x88890010UL: return "the Windows Audio service isn't running";                                    // AUDCLNT_E_SERVICE_NOT_RUNNING
+        case 0x88890008UL: return "it doesn't accept this sound format";                                        // AUDCLNT_E_UNSUPPORTED_FORMAT
+        case 0x80070005UL: return "Windows denied access to it";                                                // E_ACCESSDENIED
+        case 0x80070490UL: return "Windows no longer has this device: choose the sound device again";           // ERROR_NOT_FOUND
+        case 0x800706BAUL: return "the Windows Audio service isn't answering";                                  // RPC_S_SERVER_UNAVAILABLE
+        default: return "";
+    }
+}
+
 std::string hr(const char* what, HRESULT h) {
-    char buf[128];
-    std::snprintf(buf, sizeof buf, "%s failed (0x%08lx)", what, static_cast<unsigned long>(h));
+    char buf[256];
+    const char* why = meaning(h);
+    if (*why) std::snprintf(buf, sizeof buf, "%s failed: %s (0x%08lx)", what, why, static_cast<unsigned long>(h));
+    else std::snprintf(buf, sizeof buf, "%s failed (0x%08lx)", what, static_cast<unsigned long>(h));
     return buf;
+}
+
+// Why a device that Windows knows can't be used right now ("" when it can).
+std::string notReady(IMMDevice* dev) {
+    DWORD state = 0;
+    if (FAILED(dev->GetState(&state)) || state == DEVICE_STATE_ACTIVE) return "";
+    if (state == DEVICE_STATE_UNPLUGGED) return "nothing is plugged into this sound output";
+    if (state == DEVICE_STATE_DISABLED) return "this sound device is disabled in Windows sound settings";
+    return "the sound device isn't connected";
 }
 
 // COM for the calling thread (multithreaded; fine if it was already initialised either way).
@@ -150,6 +176,7 @@ private:
             std::lock_guard l(m_);
             name_ = friendlyName(dev.Get());
         }
+        if (std::string why = notReady(dev.Get()); !why.empty()) return why;
         ComPtr<IAudioClient> client;
         if (FAILED(h = dev->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &client))) return hr("opening the device", h);
         WAVEFORMATEX* fmt = nullptr;

@@ -197,7 +197,7 @@ export function AudioSection({ layout, onChanged, onError }: { layout: Layout; o
             </div>
             <div className="audio-row">
               <Meter db={st?.levelDb} />
-              <small className={problem ? "warn" : "muted"}>
+              <small className={problem ? "warn" : "muted"} title={problem || undefined}>
                 {!o.enabled
                   ? "off"
                   : !st

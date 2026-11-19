@@ -319,6 +319,8 @@ button.danger.solid:hover { background: #ff6b6b; }
 .audio-row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .audio-row .field.wide { flex: 1; }
 .audio-row > small { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A problem is shown in full: its end is the part that says what to do. */
+.audio-row > small.warn { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .audio-row .field input[type="number"] { width: 80px; }
 .audio-meter { display: flex; flex-direction: column; gap: 2px; width: 90px; flex: none; align-self: center; }
 .audio-meter span { display: block; height: 5px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
