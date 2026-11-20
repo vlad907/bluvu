@@ -15,6 +15,7 @@ Runs the engine on a frozen test pattern and checks real pixels:
   - a video file: plays, pauses, restarts and loops (skipped where Media Foundation is missing)
   - endpoints: check-in, assignment and status of a receiving PC
   - every rendered frame reached every output (no partial frames)
+  - an NDI stream that can't start at first keeps trying, and comes up by itself
 
     python tools/ci_check.py [--engine PATH] [--out DIR]
 
@@ -202,6 +203,29 @@ with tempfile.TemporaryDirectory() as tmp:
         want = tuple(round(0.5 * a + 0.5 * b) for a, b in zip(base, (255, 0, 0)))
         check(close(got, want, 12), f"50% red over the pattern {got} ~ {want}")
         call("DELETE", f"/api/sources/{red['id']}")
+
+        # A 600 x 300 layer gets 3-pixel dots: the tag is 33 high, 6 in from the layer's corner,
+        # its text 6 further in. out-3 (BGRA, exact colours) shows the canvas from y = 1080.
+        print("layer titles:", flush=True)
+        tagged = call("POST", "/api/sources", {"name": "TV1 (some box)", "type": "solid", "color": [0, 1, 0, 1],
+                                               "rect": {"x": 300, "y": 1380, "w": 600, "h": 300}, "title": True})
+        pause(1.0)
+        img = frame("out-3")
+        tag_width = lambda im: next(x for x in range(306, 900) if close(pixel(im, x, 320), (0, 255, 0), 12)) - 306
+        check(close(pixel(img, 318, 313), (255, 255, 255), 12), f"the title's text is white {pixel(img, 318, 313)}")
+        check(close(pixel(img, 308, 336), (0, 55, 0), 12), f"on a dark, see-through box {pixel(img, 308, 336)}")
+        check(close(pixel(img, 500, 450), (0, 255, 0), 12), "and the rest of the layer is untouched")
+        check(tag_width(img) == 63, f"it says the name up to the bracket: 3 letters, {tag_width(img)} px wide (63)")
+        saved = next(x for x in call("GET", "/api/layout")["sources"] if x["id"] == tagged["id"])
+        check(saved.get("title") is True, "the layout remembers the title is on")
+        call("PATCH", f"/api/sources/{tagged['id']}", {"titleText": "CABLE 12"})
+        pause(1.0)
+        img = frame("out-3")
+        check(tag_width(img) == 153, f"its own text replaces the name: 8 letters, {tag_width(img)} px wide (153)")
+        call("PATCH", f"/api/sources/{tagged['id']}", {"title": False})
+        pause(1.0)
+        check(close(pixel(frame("out-3"), 318, 313), (0, 255, 0), 12), "switched off, the title is gone")
+        call("DELETE", f"/api/sources/{tagged['id']}")
 
         print("scenes:", flush=True)
         call("POST", "/api/scenes", {"name": "pattern only"})
@@ -695,6 +719,43 @@ with tempfile.TemporaryDirectory() as tmp:
         except subprocess.TimeoutExpired:
             proc.kill()
         log.close()
+
+# NDI streams that can't start at first: like a canvas starting again while its old streams still
+# hold their names. A test NDI system refuses each name 6 times (the engine's first 5 quick tries
+# and one retry), so the streams can only come up through the engine trying again later.
+print("NDI streams that can't start at first:", flush=True)
+with tempfile.TemporaryDirectory() as tmp:
+    os.makedirs(f"{tmp}/layouts")
+    json.dump(layout, open(f"{tmp}/layouts/ci.json", "w"))
+    log = open(os.path.join(args.out, "engine-retry.log"), "w")
+    proc = subprocess.Popen([args.engine, "--data", f"{tmp}/data", "--layouts", f"{tmp}/layouts", "--layout", "ci", "--port", str(args.port)],
+                            stderr=log, stdout=log, env=dict(os.environ, MOSAIC_TEST_NDI_SENDER_FAILS="6"))
+    try:
+        for _ in range(60):
+            try:
+                get("/api/health", timeout=2)
+                break
+            except Exception:
+                time.sleep(0.5)
+        sinks = lambda: {o["id"]: (o["sink"], o.get("error", "")) for o in json.loads(get("/api/metrics")[1])["outputs"]}
+        first = wait_for(sinks, timeout=30)
+        check(first and all(k == "null" and "trying again" in e for k, e in first.values()),
+              f"a stream that can't start says so ({first and next(iter(first.values()))})")
+        up = wait_for(lambda: all(k == "ndi" and not e for k, e in sinks().values()), timeout=20, every=0.5)
+        check(up, f"and starts by itself a few seconds later ({sinks()})")
+        sent = lambda: {o["id"]: o["framesSent"] for o in json.loads(get("/api/metrics")[1])["outputs"]}
+        a = sent()
+        time.sleep(1.5)
+        b = sent()
+        check(all(b[i] > a[i] for i in a), "and sends frames on it")
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        log.close()
+    print("  " + "\n  ".join(l.strip() for l in open(os.path.join(args.out, "engine-retry.log")) if "NDI sender" in l)[:600], flush=True)
 
 print(f"\n{'FAILED: ' + str(len(failures)) + ' check(s)' if failures else 'ALL CHECKS PASSED'}")
 sys.exit(1 if failures else 0)

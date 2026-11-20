@@ -184,6 +184,32 @@ export function SourceInspector({
       </div>
 
       <div className="group">
+        <h3>Title</h3>
+        <label className="toggle wide-note">
+          <input type="checkbox" checked={!!source.title} onChange={(e) => onPatch({ title: e.target.checked })} />
+          Show a name tag on the screens (top-left corner of this layer)
+        </label>
+        {source.title && (
+          <>
+            <label className="field wide">
+              <span>Text</span>
+              <input
+                key={source.id + (source.titleText ?? "")}
+                defaultValue={source.titleText ?? ""}
+                maxLength={40}
+                placeholder={source.name.split(" (")[0] || source.name}
+                onBlur={(e) => e.target.value.trim() !== (source.titleText ?? "") && onPatch({ titleText: e.target.value.trim() })}
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              />
+            </label>
+            <small className="muted wide-note">
+              Empty shows "{source.name.split(" (")[0] || source.name}". Capital letters, numbers and simple punctuation only.
+            </small>
+          </>
+        )}
+      </div>
+
+      <div className="group">
         <label className="field wide">
           <span>Belongs to group (saved in that group's presets)</span>
           <select

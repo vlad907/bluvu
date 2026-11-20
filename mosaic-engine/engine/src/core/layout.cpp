@@ -116,6 +116,8 @@ void to_json(json& j, const SourceConfig& s) {
     }
     if (!s.group.empty()) j["group"] = s.group;
     if (s.slot > 0) j["slot"] = s.slot;
+    if (s.title) j["title"] = true;
+    if (!s.titleText.empty()) j["titleText"] = s.titleText;
 }
 
 void from_json(const json& j, SourceConfig& s) {
@@ -137,6 +139,8 @@ void from_json(const json& j, SourceConfig& s) {
     s.enabled = j.value("enabled", s.enabled);
     s.animated = j.value("animated", s.animated);
     s.group = j.value("group", s.group);
+    s.title = j.value("title", s.title);
+    s.titleText = j.value("titleText", s.titleText);
 }
 
 void to_json(json& j, const GroupPreset& p) {

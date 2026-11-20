@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "api/http_api.hpp"
+#include "io/ndi_test.hpp"
 #include "core/canvases.hpp"
 #include "core/engine.hpp"
 #include "core/layout_store.hpp"
@@ -91,7 +92,9 @@ int main(int argc, char** argv) {
     ro.softwareGpu = opt.softwareGpu;
 
     std::string ndiWhyNot;
-    auto ndi = createNdiSystem(ndiWhyNot);
+    std::unique_ptr<NdiSystem> ndi;
+    if (const char* fails = std::getenv("MOSAIC_TEST_NDI_SENDER_FAILS")) ndi = std::make_unique<TestNdiSystem>(std::atoi(fails));
+    else ndi = createNdiSystem(ndiWhyNot);
     if (ndi) std::cerr << "[ndi] " << ndi->version() << "\n";
     else std::cerr << "[ndi] disabled: " << ndiWhyNot << "\n";
 

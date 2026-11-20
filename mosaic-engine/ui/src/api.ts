@@ -100,6 +100,8 @@ export interface Source {
   rect: Rect;
   crop: Rect; // region of the source drawn; w/h 0 = all of it
   opacity: number;
+  title?: boolean; // a name tag drawn in the layer's top-left corner
+  titleText?: string; // what it says; empty = the layer's name up to " ("
   color?: [number, number, number, number];
   animated?: boolean;
   enabled: boolean;

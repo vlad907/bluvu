@@ -1,3 +1,4 @@
+#include "../../../common/font5x7.hpp"
 #include "core/engine.hpp"
 #include "io/capture.hpp"
 
@@ -202,6 +203,7 @@ void Engine::run() {
     raiseThreadPriority(ThreadRole::Render);
     PreciseSleeper sleeper;
     auto next = Clock::now();
+    auto lastTick = next - std::chrono::seconds(1);
     while (running_) {
         if (simulateFailure_) throw std::runtime_error("simulated GPU device loss (test)");
         if (frameId_ % 60 == 0) {
@@ -219,6 +221,7 @@ void Engine::run() {
         }
         auto interval = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / layout->frameRate));
         if (frameId_ % 120 == 0) syncDisplays(*layout, true);  // monitors that weren't there: try again
+        if (ndi_ && Clock::now() >= senderRetryAt_) retrySenders();
 
         // A canvas with display outputs runs on its first monitor's refresh (a frame every
         // refresh, or every other one for 30 fps on 60 Hz), so they never drop or repeat frames.
@@ -235,6 +238,15 @@ void Engine::run() {
             int perFrame = std::max(1, static_cast<int>(std::lround(paceHz / layout->frameRate)));
             paced = true;
             for (int i = 0; i < perFrame && paced; ++i) paced = renderer_.waitDisplayVBlank(pace);
+            // A monitor that is asleep, or whose output Windows has replaced, answers the wait
+            // at once: without this the canvas would render as fast as it can (hundreds of
+            // frames a second). Then the clock paces this frame instead.
+            auto refresh = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(perFrame / paceHz));
+            if (paced && Clock::now() - lastTick < refresh / 2) {
+                paced = false;
+                if (next < lastTick + interval) next = lastTick + interval;
+                unpacedWaits_++;
+            }
             if (paced) targetFps_ = paceHz / perFrame;
         }
         if (!paced) {
@@ -242,6 +254,7 @@ void Engine::run() {
             sleeper.sleepUntil(next);
         }
         auto tick = Clock::now();
+        lastTick = tick;
         if (paced) {
             next = tick + interval;
         } else {
@@ -309,6 +322,7 @@ void Engine::renderFrame(const Layout& layout, uint64_t frameId, Clock::time_poi
 
     const std::set<std::string> needed = neededSources(layout);
     updateSources(layout, needed, frameId, seconds);
+    updateTitles(layout, needed);
 
     // Transition: freeze what the canvas shows now; it fades out over the new content.
     int transitionMs = 0;
@@ -528,6 +542,69 @@ void Engine::renderFrame(const Layout& layout, uint64_t frameId, Clock::time_poi
     }
 }
 
+// What a layer's title says: its own text, else its name up to " (" ("BOX1 (ZowieBoxPro-54506)"
+// -> "BOX1"). At most 40 characters.
+static std::string titleOf(const SourceConfig& sc) {
+    std::string t = sc.titleText;
+    if (t.empty()) {
+        t = !sc.name.empty() ? sc.name : !sc.ndiName.empty() ? sc.ndiName : sc.id;
+        auto cut = t.find(" (");
+        if (cut != std::string::npos && cut > 0) t.resize(cut);
+    }
+    if (t.size() > 40) t.resize(40);
+    return t;
+}
+
+// Titles: a tag per layer that has one switched on (white text on a dark box, in the built-in
+// 5 x 7 font), sized to the layer and made again only when its text or size changes.
+void Engine::updateTitles(const Layout& layout, const std::set<std::string>& needed) {
+    for (auto& sc : layout.sources) {
+        auto it = sources_.find(sc.id);
+        if (it == sources_.end()) continue;
+        SourceState& s = it->second;
+        std::string text = sc.title && needed.count(sc.id) && sc.enabled ? titleOf(sc) : "";
+        // A dot is about 1/100 of the layer's height (text 7% of it), smaller if the layer is too narrow.
+        int n = static_cast<int>(text.size());
+        int dot = std::clamp(static_cast<int>(std::lround(sc.rect.h / 100.0)), 2, 32);
+        while (dot > 1 && (n * 6 - 1 + 8) * dot > sc.rect.w) --dot;
+        std::string key = text.empty() ? "" : text + "\n" + std::to_string(dot);
+        if (key == s.titleKey) continue;
+        if (s.titleTex) renderer_.destroyTexture(s.titleTex), s.titleTex = 0;
+        s.titleKey = key;
+        if (text.empty()) continue;
+        int pad = 2 * dot;
+        s.titleW = (n * 6 - 1) * dot + 2 * pad;
+        s.titleH = 7 * dot + 2 * pad;
+        std::vector<uint8_t> px(size_t(s.titleW) * s.titleH * 4);
+        for (size_t i = 0; i < px.size(); i += 4) px[i + 3] = 200;  // the box: black, a little see-through
+        for (int c = 0; c < n; ++c) {
+            const char* g = font5x7Glyph(text[c]);
+            for (int gy = 0; gy < 7; ++gy)
+                for (int gx = 0; gx < 5; ++gx) {
+                    if (g[gy * 5 + gx] != '1') continue;
+                    for (int y = 0; y < dot; ++y) {
+                        uint8_t* row = &px[(size_t(pad + gy * dot + y) * s.titleW + pad + (c * 6 + gx) * dot) * 4];
+                        std::fill(row, row + size_t(dot) * 4, uint8_t(255));
+                    }
+                }
+        }
+        s.titleTex = renderer_.createTexture(s.titleW, s.titleH, TexUsage::Upload);
+        renderer_.uploadBGRA(s.titleTex, px.data(), s.titleW * 4);
+    }
+}
+
+// Inside renderCanvas's pass: the layer's title over its top-left corner, as see-through as the layer.
+void Engine::drawTitle(const SourceConfig& sc, const SourceState& s) {
+    if (!s.titleTex) return;
+    int margin = std::max(2, s.titleH / 5);
+    Uniforms u = makeUniforms(float(sc.rect.x + margin), float(sc.rect.y + margin), float(s.titleW), float(s.titleH));
+    u.sizes[0] = u.crop[2] = float(s.titleW);
+    u.sizes[1] = u.crop[3] = float(s.titleH);
+    u.fparams[3] = sc.opacity;
+    u.iparams[3] |= 2;  // blend by the tag's own alpha
+    renderer_.drawTextured(s.titleTex, u);
+}
+
 // Canvas: needed sources in order, each blended over the ones before it.
 void Engine::renderCanvas(const Layout& layout, const std::set<std::string>& needed, Clock::time_point tick) {
     renderer_.beginPass(canvas_, layout.canvas.background.data());
@@ -544,6 +621,7 @@ void Engine::renderCanvas(const Layout& layout, const std::set<std::string>& nee
                 u.sizes[1] = u.crop[3] = float(fb->h);
                 if (fb->hasAlpha) u.iparams[3] |= 2;
                 renderer_.drawTextured(fb->tex, u);
+                drawTitle(sc, s);
                 continue;
             }
         }
@@ -553,6 +631,7 @@ void Engine::renderCanvas(const Layout& layout, const std::set<std::string>& nee
             u.fparams[3] = sc.opacity * c[3];
             u.iparams[3] = 1;  // solid
             renderer_.drawTextured(canvas_, u);
+            drawTitle(sc, s);
             continue;
         }
         u.sizes[0] = float(s.w);
@@ -564,6 +643,7 @@ void Engine::renderCanvas(const Layout& layout, const std::set<std::string>& nee
         u.crop[3] = cropped ? float(sc.crop.h) : float(s.h);
         if (s.hasAlpha) u.iparams[3] |= 2;  // blend by the image's own alpha too
         renderer_.drawTextured(s.tex[s.current], u);
+        drawTitle(sc, s);
     }
     if (fadeMs_ > 0) {
         double t = msBetween(fadeStart_, tick) / fadeMs_;
@@ -907,6 +987,21 @@ std::unique_ptr<VideoSink> Engine::makeSink(const std::string& ndiName, std::str
     return createNullSink();
 }
 
+void Engine::retrySenders() {
+    senderRetryAt_ = Clock::now() + std::chrono::seconds(3);
+    std::vector<std::shared_ptr<OutputChannel>> stuck;
+    {
+        std::lock_guard l(channelsMutex_);
+        for (auto& [id, ch] : channels_)
+            if (ch->sinkKind() == "null") stuck.push_back(ch);
+    }
+    for (auto& ch : stuck)
+        if (auto s = ndi_->createSender(ch->ndiName)) {
+            ch->replaceSink(std::move(s));
+            std::cerr << "[engine] NDI sender '" << ch->ndiName << "' started (it couldn't at first)\n";
+        }
+}
+
 void Engine::restartVideo(const std::string& sourceId) {
     std::lock_guard l(videoRestartMutex_);
     videoRestarts_.push_back(sourceId);
@@ -922,6 +1017,8 @@ void Engine::destroySource(SourceState& s) {
         if (t) renderer_.destroyTexture(t), t = 0;
     s.texCount = 0;
     s.hasFrame = false;
+    if (s.titleTex) renderer_.destroyTexture(s.titleTex), s.titleTex = 0;
+    s.titleKey.clear();
 }
 
 // Display outputs: a window opened on the monitor an output names, closed when the output goes,
@@ -1242,6 +1339,7 @@ json Engine::metrics() {
                            {"name", o.name},
                            {"ndiName", o.ndiName},
                            {"sink", it->second->sinkKind()},
+                           {"error", ndi_ && it->second->sinkKind() == "null" ? "its NDI stream couldn't start (the name is still held, usually by a stream being closed); trying again every 3 s" : ""},
                            {"pixelFormat", it->second->uyvy ? "uyvy" : "bgra"},
                            {"enabled", o.enabled},
                            {"width", o.width},
@@ -1288,6 +1386,7 @@ json Engine::metrics() {
               {"gpuUtilization", renderer_.gpuUtilization()},
               {"readbackMBps", readbackBytesPerSec / 1e6},
               {"lateFrames", lateFrames_.load()},
+              {"unpacedWaits", unpacedWaits_.load()},
               {"directFrames", directFrames_.load()},
               {"ndi", ndi_ ? ndi_->version() : "unavailable"},
               {"layout", layout->id},

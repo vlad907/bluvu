@@ -60,18 +60,40 @@ void OutputChannel::onReadback(int slot, const ReadbackView& view) {
     cv_.notify_one();
 }
 
+void OutputChannel::replaceSink(std::unique_ptr<VideoSink> sink) {
+    {
+        std::lock_guard l(m_);
+        if (!stop_) nextSink_ = std::move(sink);
+    }
+    cv_.notify_one();  // taken over straight away, even by an output that sends nothing now
+}
+
 void OutputChannel::run() {
     raiseThreadPriority(ThreadRole::Sender);
     int held = -1;  // slot the sink may still be reading (async NDI)
     for (;;) {
         ReadyFrame f;
+        std::unique_ptr<VideoSink> next;
         {
             std::unique_lock l(m_);
-            cv_.wait(l, [this] { return stop_ || !ready_.empty(); });
+            cv_.wait(l, [this] { return stop_ || !ready_.empty() || nextSink_; });
             if (stop_) break;
-            f = ready_.front();
-            ready_.pop_front();
+            next = std::move(nextSink_);
+            if (!ready_.empty()) {
+                f = ready_.front();
+                ready_.pop_front();
+            } else {
+                f.slot = -1;
+            }
         }
+        if (next) {
+            // The old sink lets go of the frame it may still be reading before it goes.
+            sink_->flush();
+            if (held >= 0) ring_.requestRelease(held), held = -1;
+            std::lock_guard l(sinkMutex_);
+            sink_ = std::move(next);
+        }
+        if (f.slot < 0) continue;
         ring_.set(f.slot, SlotRing::Held);
 
         VideoFrameView v;

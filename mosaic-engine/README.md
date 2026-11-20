@@ -31,6 +31,7 @@ in the style of Resolume's Advanced Output drives the running engine through a R
 | Endpoints: receiving PCs set up from the editor (which output on which screen), with online / playing status | **Working**, tested with the dashboard and mock Studio Monitors on macOS |
 | Layout history (restore any of the last 50 versions), export / import | **Working, checked** (`tools/ci_check.py`) |
 | Image sources (PNG / JPEG / BMP / GIF, with transparency), signal-loss fallback image per group | **Working, pixel-checked** |
+| Layer titles: a name tag in the corner of any layer, to tell inputs apart on the screens | **Working, pixel-checked** (built-in upper-case font) |
 | Video file sources (MP4 / MOV: H.264, HEVC, AV1), up to 8K, with loop / pause / restart | **Working, pixel-checked** on macOS (8K HEVC at 30 fps) and by CI on Windows; plays 8K AV1 on the media server. Falls back to CPU decoding when the GPU can't convert the frames; skips late frames instead of slowing down |
 | Optional editor PIN and API key for changes | **Working**, tested in the browser |
 | Presets per wall group, one-call "show this NDI stream on this group", control API ([docs/CONTROL_API.md](docs/CONTROL_API.md)) | **Working, pixel-checked** (with colour sources; NDI switching not yet tried on Windows) |

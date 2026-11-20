@@ -294,6 +294,10 @@ start of a show segment. Reply: `{"group": "main-wall", "restarted": ["main-wall
 one video, `PATCH /api/sources/{source}` with `{"playing": false}` / `{"playing": true}`. The source id is
 listed by `GET /api/sources`.
 
+A name tag on a layer, to tell inputs apart on the screens: `PATCH /api/sources/{source}` with
+`{"title": true}`. It says the layer's name up to its bracket (`BOX1 (ZowieBoxPro-54506)` shows `BOX1`);
+`{"titleText": "CABLE 12"}` gives it its own text (upper-case letters, numbers and simple punctuation).
+
 ### `POST /api/scenes/{scene}/recall`
 
 Replaces everything on the canvas, all groups at once, with a scene saved in the editor

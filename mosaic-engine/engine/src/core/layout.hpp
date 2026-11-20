@@ -37,6 +37,8 @@ struct SourceConfig {
     std::array<float, 4> color{0.f, 0.f, 0.f, 1.f};  // for SourceType::Solid
     bool animated = true;                     // test pattern: false freezes the moving bar and frame counter
     bool enabled = true;
+    bool title = false;                       // draw a name tag in the layer's top-left corner (to tell inputs apart)
+    std::string titleText;                    // what the tag says; empty = the layer's name up to its " (" ("BOX1 (Zowie...)" -> "BOX1")
     std::string group;                        // wall group whose content this is (set by its presets), or empty
     int slot = 0;                             // which slot of the group's arrangement it fills (1..N); 0 = placed by hand
 };

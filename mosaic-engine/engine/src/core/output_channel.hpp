@@ -122,6 +122,9 @@ public:
     // GPU completion (any thread).
     void onReadback(int slot, const ReadbackView& view);
 
+    // Hands the sender a new sink (a real NDI sender for an output stuck on the null one); it
+    // takes over from the next frame. Any thread.
+    void replaceSink(std::unique_ptr<VideoSink> sink);
     // Stops the sender thread and closes the sink, so its NDI stream name is free
     // for a replacement channel straight away. Render thread.
     void shutdown();
@@ -155,6 +158,7 @@ private:
     std::mutex m_;
     std::condition_variable cv_;
     std::deque<ReadyFrame> ready_;
+    std::unique_ptr<VideoSink> nextSink_;  // waiting to replace sink_ (guarded by m_)
     bool stop_ = false;
     std::thread thread_;
 

@@ -104,7 +104,11 @@ private:
             std::unique_ptr<VideoFileDecoder> video;
         };
         std::future<NextVideo> nextVideo;
-        Clock::time_point playlistTried{};  // last time a file couldn't be opened or the folder was empty
+        Clock::time_point playlistTried{};
+        // Title: the name tag drawn over the layer's top-left corner, and what it was made from.
+        TexId titleTex = 0;
+        int titleW = 0, titleH = 0;
+        std::string titleKey;  // last time a file couldn't be opened or the folder was empty
     };
     std::mutex videoRestartMutex_;
     std::vector<std::string> videoRestarts_;
@@ -132,6 +136,8 @@ private:
     void reconcile(const Layout& layout);
     void renderFrame(const Layout& layout, uint64_t frameId, Clock::time_point tick, double seconds);
     void updateSources(const Layout& layout, const std::set<std::string>& needed, uint64_t frameId, double seconds);
+    void updateTitles(const Layout& layout, const std::set<std::string>& needed);
+    void drawTitle(const SourceConfig& sc, const SourceState& s);
     void renderCanvas(const Layout& layout, const std::set<std::string>& needed, Clock::time_point tick);
     void renderPreviews(const Layout& layout);
     void destroySource(SourceState& s);
@@ -226,6 +232,11 @@ private:
     RateMeter renderRate_;
     Ewma encodeMs_, waitMs_, gpuMs_, frameMs_, jitterMs_;
     std::atomic<uint64_t> frameId_{0}, lateFrames_{0}, directFrames_{0};
+    std::atomic<uint64_t> unpacedWaits_{0};  // frames the clock paced because the monitor's refresh wait answered at once
+    // NDI outputs whose sender couldn't be created (the name still held by a stream being
+    // closed) are tried again every few seconds instead of staying silent.
+    Clock::time_point senderRetryAt_{};
+    void retrySenders();
     std::atomic<double> targetFps_{60};
 };
 
