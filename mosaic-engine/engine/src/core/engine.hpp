@@ -184,7 +184,9 @@ private:
     // Display outputs (an output with a monitor set): its window on the monitor, by output id.
     struct DisplayOut {
         DisplayId id = 0;  // 0 = couldn't open (error says why; tried again every few seconds)
-        std::string monitor, error;
+        std::string monitor, error;  // the display device it is on (or would be), and why it isn't open
+        std::string wanted, wantedId;  // the output's display and displayId when this was set up
+        std::string label;             // what the monitor calls itself
         int modeW = 0, modeH = 0, modeHz = 0;  // the mode asked for when it opened (0 = as it was)
         std::string modeError;                 // why the monitor couldn't be put in that mode
         bool claimed = false;                  // holds the monitor against other canvases

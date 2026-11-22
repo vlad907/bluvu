@@ -106,6 +106,8 @@ export function Inspector({
   // Monitors this output can go to: those on the canvas's GPU (any GPU's while it's on the default one).
   const monitors = gpus.flatMap((g) => (layout.gpu === undefined || layout.gpu < 0 || g.index === layout.gpu ? g.outputs.map((o) => ({ gpu: g, ...o })) : []));
   const monitorLabel = (name: string) => name.replace(/^\\\\\.\\/, "");
+  // The output's monitor: the one it remembers if it knows one, else whichever has its display name now.
+  const current = output.display ? monitors.find((m) => (output.displayId ? m.id === output.displayId : m.name === output.display)) : undefined;
   const resKey = `${output.width}x${output.height}`;
   const preset = RESOLUTIONS.find(([, w, h]) => `${w}x${h}` === resKey);
   const fitCanvas = () => onPatch({ crop: { x: 0, y: 0, w: layout.canvas.width, h: layout.canvas.height } });
@@ -141,27 +143,38 @@ export function Inspector({
         <TextField label="Name" value={output.name} onCommit={(name) => onPatch({ name })} />
         <label className="field wide" title="NDI: a stream receiving PCs show. A monitor: full screen on a connector of this canvas's GPU (DisplayPort / HDMI to a video wall or its controller).">
           <span>Send to</span>
-          <select value={output.display ?? ""} onChange={(e) => onPatch({ display: e.target.value })}>
+          <select
+            value={current ? current.name : output.display ? "(away)" : ""}
+            onChange={(e) => {
+              if (e.target.value === "(away)") return;
+              const m = monitors.find((x) => x.name === e.target.value);
+              onPatch({ display: e.target.value, displayId: m?.id ?? "" });
+            }}
+          >
             <option value="">NDI stream (receiving PCs)</option>
             {monitors.map((m) => (
               <option key={m.name} value={m.name}>
-                Monitor {monitorLabel(m.name)} · {m.width}×{m.height}
+                Monitor {monitorLabel(m.name)}
+                {m.label ? ` · ${m.label}` : ""} · {m.width}×{m.height}
                 {m.refreshHz ? ` ${m.refreshHz} Hz` : ""}
                 {gpus.length > 1 ? ` · ${m.gpu.name}` : ""}
               </option>
             ))}
-            {output.display && !monitors.some((m) => m.name === output.display) && <option value={output.display}>Monitor {monitorLabel(output.display)} (not found)</option>}
+            {output.display && !current && <option value="(away)">Its monitor is off or unplugged (was {monitorLabel(output.display)}); waiting for it</option>}
           </select>
         </label>
         {output.display ? (
-          <small className="muted wide-note">Drawn at the monitor's resolution, on every refresh of it.</small>
+          <small className="muted wide-note">
+            Drawn at the monitor's resolution, on every refresh of it. The output stays with this monitor: while it is off the output waits, and starts again
+            by itself when it is back.
+          </small>
         ) : (
           <TextField label="NDI stream name" value={output.ndiName} onCommit={(ndiName) => onPatch({ ndiName })} />
         )}
       </div>
 
       {output.display ? (
-        <DisplaySettings output={output} monitor={monitors.find((m) => m.name === output.display)} onPatch={onPatch} />
+        <DisplaySettings output={output} monitor={current} onPatch={onPatch} />
       ) : (
         <div className="group">
           <h3>Output resolution</h3>

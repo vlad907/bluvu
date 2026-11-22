@@ -1,3 +1,4 @@
+#include "core/monitor_match.hpp"
 #include "../../../common/font5x7.hpp"
 #include "core/engine.hpp"
 #include "io/capture.hpp"
@@ -1050,10 +1051,20 @@ void Engine::closeDisplay(DisplayOut& d) {
 // Display outputs: a window opened on the monitor an output names, closed when the output goes,
 // is turned off, names another monitor or another mode. One that couldn't open is tried again when asked.
 void Engine::syncDisplays(const Layout& layout, bool retryFailed) {
+    // Which monitor each display name is now: an output follows its monitor when Windows renames
+    // it, and closes (instead of landing on another screen) while its monitor is off.
+    const auto monitors = listMonitorIdentities();
+    std::map<std::string, std::string> learned;  // output id -> its monitor's id, known from now on
     for (auto it = displays_.begin(); it != displays_.end();) {
         const OutputConfig* o = layout.findOutput(it->first);
-        bool keep = o && o->enabled && o->display == it->second.monitor && o->modeWidth == it->second.modeW && o->modeHeight == it->second.modeH &&
-                    o->modeHz == it->second.modeHz && (it->second.id || !retryFailed);
+        DisplayOut& d = it->second;
+        bool keep = o && o->enabled && o->display == d.wanted && o->displayId == d.wantedId && o->modeWidth == d.modeW && o->modeHeight == d.modeH &&
+                    o->modeHz == d.modeHz && (d.id || !retryFailed);
+        if (keep && d.id) {
+            MonitorMatch m = matchMonitor(o->display, o->displayId, monitors);
+            keep = m.error.empty() && m.name == d.monitor;
+            if (!keep) std::cerr << "[engine] display output '" << it->first << "': its monitor left " << d.monitor << "; closing it\n";
+        }
         if (keep) {
             ++it;
             continue;
@@ -1064,24 +1075,44 @@ void Engine::syncDisplays(const Layout& layout, bool retryFailed) {
     for (auto& o : layout.outputs) {
         if (o.display.empty() || !o.enabled || displays_.count(o.id)) continue;
         DisplayOut d;
-        d.monitor = o.display;
+        MonitorMatch match = matchMonitor(o.display, o.displayId, monitors);
+        const std::string monitor = match.error.empty() ? match.name : o.display;
+        d.monitor = monitor;
+        d.wanted = o.display;
+        d.wantedId = o.displayId;
+        d.label = match.label;
+        d.error = match.error;
         d.modeW = o.modeWidth;
         d.modeH = o.modeHeight;
         d.modeHz = o.modeHz;
         for (auto& [oid, other] : displays_)
-            if (other.monitor == o.display) d.error = o.display + " already shows the output " + oid;
+            if (d.error.empty() && other.error.rfind("its monitor is off", 0) != 0 && other.monitor == monitor) d.error = monitor + " already shows the output " + oid;
         if (d.error.empty()) {
             std::lock_guard l(monitorsMutex);
-            auto [it, fresh] = monitorOwners.emplace(o.display, "the canvas \"" + layout.name + "\" (" + o.name + ")");
+            auto [it, fresh] = monitorOwners.emplace(monitor, "the canvas \"" + layout.name + "\" (" + o.name + ")");
             if (fresh) d.claimed = true;
-            else d.error = o.display + " is already used by " + it->second + ": a monitor shows one output";
+            else d.error = monitor + " is already used by " + it->second + ": a monitor shows one output";
         }
         // The mode first: the window and its swap chain take the monitor's size when they open.
-        if (d.error.empty() && o.modeWidth > 0 && !renderer_.setDisplayMode(o.display, o.modeWidth, o.modeHeight, o.modeHz, d.modeError))
+        if (d.error.empty() && o.modeWidth > 0 && !renderer_.setDisplayMode(monitor, o.modeWidth, o.modeHeight, o.modeHz, d.modeError))
             std::cerr << "[engine] display output '" << o.id << "': " << d.modeError << "\n";
-        if (d.error.empty()) d.id = renderer_.createDisplay(o.display, d.error);
+        if (d.error.empty()) d.id = renderer_.createDisplay(monitor, d.error);
         if (!d.id && !retryFailed) std::cerr << "[engine] display output '" << o.id << "': " << d.error << "\n";
+        if (d.id && retryFailed) std::cerr << "[engine] display output '" << o.id << "' opened on " << monitor << (d.label.empty() ? "" : " (" + d.label + ")") << "\n";
+        if (d.id && !match.learnedId.empty()) {
+            learned[o.id] = match.learnedId;
+            d.wantedId = match.learnedId;  // so saving it below doesn't reopen the display
+        }
         displays_[o.id] = d;
+    }
+    if (!learned.empty()) {
+        // Remember which monitor each of these outputs is on, so it stays there from now on.
+        LayoutStore::setRequestCanvas(canvasId_);
+        store_.mutateActive([&](Layout& l) {
+            for (auto& [oid, id] : learned)
+                if (OutputConfig* o = l.findOutput(oid); o && o->displayId.empty()) o->displayId = id;
+            return true;
+        });
     }
     std::lock_guard l(displayStatusMutex_);
     json status = json::object();
@@ -1091,6 +1122,8 @@ void Engine::syncDisplays(const Layout& layout, bool retryFailed) {
                      ? displayStatus_[oid] : json::object();
         j.update(displayStatusOf(d.monitor, d.error, d.modeError, d.id != 0));
         if (d.modeError.empty()) j.erase("modeError");
+        if (!d.label.empty()) j["label"] = d.label;
+        j["waiting"] = !d.id && d.error.rfind("its monitor is off", 0) == 0;
         status[oid] = j;
     }
     displayStatus_ = status;

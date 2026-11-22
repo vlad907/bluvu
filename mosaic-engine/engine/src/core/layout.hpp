@@ -80,6 +80,9 @@ struct OutputConfig {
     // HDMI to a video wall or its controller) instead of out as an NDI stream. Drawn at the
     // monitor's resolution, timed to its refresh.
     std::string display;
+    // Which monitor that was when it was chosen (MonitorIdentity::id; "" = not known yet, learnt the
+    // first time it opens). The output follows this monitor and waits while it is off.
+    std::string displayId;
     // Display outputs: the mode to put the monitor in (0 x 0 = leave it as Windows has it), and how
     // long to hold the picture back (to line up with walls fed over NDI, which show it later).
     int modeWidth = 0, modeHeight = 0, modeHz = 0;
@@ -164,6 +167,7 @@ struct AudioOutputConfig {
     std::string deviceName;      // its name when chosen (shown if it's unplugged)
     std::string source;          // NDI source name whose audio it plays
     int channelPair = 0;         // 0 = channels 1-2, 1 = 3-4, ...
+    int monoChannel = 0;         // 0 = stereo on that pair; 1..64 = left + right mixed onto this one channel of the device
     double volumeDb = 0;         // -60..+12
     bool mute = false;
     bool matchWall = true;       // delay = the wall's delay, plus delayMs (a trim, may be negative)

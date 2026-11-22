@@ -8,6 +8,7 @@
 #include <random>
 #include <vector>
 
+#include "audio/audio_place.hpp"
 #include "audio/audio_ring.hpp"
 
 namespace mosaic {
@@ -133,6 +134,21 @@ int audioSelfTest() {
     tooShort.delay = 0.010;  // less than the jitter: some blocks arrive after they're due
     r = run(tooShort);
     check(r.missing > 0, "a delay shorter than the network's jitter is reported (silence)", r);
+
+    // Where a sample lands on a multi-output device (a 4-output interface feeding a DSP).
+    auto placed = [&](int channels, int pair, int mono, std::vector<float> want, const char* what) {
+        std::vector<float> f(static_cast<size_t>(channels), 0.f);
+        placeAudioFrame(f.data(), channels, pair, mono, 0.8f, 0.4f);
+        bool same = f == want;
+        std::printf("%s %s\n", same ? "  ok  " : "  FAIL", what);
+        ok = ok && same;
+    };
+    placed(4, 0, 0, {0.8f, 0.4f, 0, 0}, "stereo on outputs 1-2 of a 4-output device");
+    placed(4, 1, 0, {0, 0, 0.8f, 0.4f}, "stereo on outputs 3-4");
+    placed(4, 0, 3, {0, 0, 0.6f, 0}, "mono on output 3 alone: left and right mixed, the others silent");
+    placed(4, 1, 1, {0.6f, 0, 0, 0}, "mono on output 1 (the pair setting doesn't matter then)");
+    placed(2, 0, 3, {0, 0}, "mono on an output the device doesn't have: silent, not somewhere else");
+    placed(1, 0, 0, {0.6f}, "a one-channel device gets the mix");
 
     std::printf(ok ? "AUDIO SELF-TEST PASSED\n" : "AUDIO SELF-TEST FAILED\n");
     return ok ? 0 : 1;

@@ -495,6 +495,7 @@ multi-channel interface), delayed to match the picture. They're set up in the ed
 | `source` | whose sound it plays: an NDI stream's full name (`MACHINE (Stream)`), or `input:<device id>` for a sound input of the media server (a capture card's audio, a line in) |
 | `device` | the Windows sound device's id (`""` = the default device); ids are in `GET /api/audio` |
 | `channelPair` | 0 = channels 1–2, 1 = channels 3–4, ... |
+| `monoChannel` | 0 = stereo on that pair. 1, 2, 3, ... = left and right mixed onto that one channel of the device (one mono feed per connector of a multi-output interface, for a DSP's inputs) |
 | `volumeDb` | −60 to +12 (0 = unchanged) |
 | `mute` | `true` / `false` |
 | `matchWall` | `true`: delayed as much as the picture, plus `delayMs` as a trim (may be negative). `false`: `delayMs` is the whole delay |

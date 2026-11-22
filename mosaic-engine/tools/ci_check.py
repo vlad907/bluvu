@@ -227,6 +227,28 @@ with tempfile.TemporaryDirectory() as tmp:
         check(close(pixel(frame("out-3"), 318, 313), (0, 255, 0), 12), "switched off, the title is gone")
         call("DELETE", f"/api/sources/{tagged['id']}")
 
+        print("display outputs remember their monitor:", flush=True)
+        o = call("PATCH", "/api/outputs/out-4", {"display": "\\\\.\\DISPLAY9", "displayId": "model-and-port"})
+        check(o.get("displayId") == "model-and-port", "an output keeps the monitor chosen for it")
+        o = call("PATCH", "/api/outputs/out-4", {"name": "Out 4"})
+        check(o.get("displayId") == "model-and-port", "through other changes")
+        o = call("PATCH", "/api/outputs/out-4", {"display": "\\\\.\\DISPLAY6"})
+        check(not o.get("displayId"), "and forgets it when another display is chosen by name (learnt again when it opens)")
+        o = call("PATCH", "/api/outputs/out-4", {"display": ""})
+        check(not o.get("display") and not o.get("displayId"), "back to an NDI stream")
+        pause(1.0)
+
+        print("sound outputs, mono on one output of a device:", flush=True)
+        lay = call("GET", "/api/layout")
+        lay["audioOutputs"] = [{"id": "zone-1", "name": "Zone 1", "source": "BOX (one)", "device": "", "channelPair": 0, "monoChannel": 3}]
+        call("PUT", "/api/layout", lay)
+        kept = call("GET", "/api/layout").get("audioOutputs", [])
+        check(len(kept) == 1 and kept[0].get("monoChannel") == 3, f"the layout keeps 'mono on output 3' ({kept[0].get('monoChannel') if kept else None})")
+        check(isinstance(call("GET", "/api/audio").get("outputs"), list), "and the sound status still answers")
+        lay = call("GET", "/api/layout")
+        lay["audioOutputs"] = []
+        call("PUT", "/api/layout", lay)
+
         print("scenes:", flush=True)
         call("POST", "/api/scenes", {"name": "pattern only"})
         call("POST", "/api/sources", {"name": "blue", "type": "solid", "color": [0, 0, 1, 1]})
@@ -719,6 +741,11 @@ with tempfile.TemporaryDirectory() as tmp:
         except subprocess.TimeoutExpired:
             proc.kill()
         log.close()
+
+print("display outputs follow their monitor:", flush=True)
+mm = subprocess.run([args.engine, "--monitors"], capture_output=True, text=True, timeout=60)
+print("".join("  " + line + "\n" for line in mm.stdout.splitlines()), end="", flush=True)
+check(mm.returncode == 0 and "MONITOR MATCH PASSED" in mm.stdout, "an output stays with its monitor, waits while it is off, and this PC's monitors can be listed")
 
 # NDI streams that can't start at first: like a canvas starting again while its old streams still
 # hold their names. A test NDI system refuses each name 6 times (the engine's first 5 quick tries

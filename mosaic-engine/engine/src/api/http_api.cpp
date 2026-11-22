@@ -1638,7 +1638,7 @@ struct HttpApi::Impl {
                 for (auto& o : g.outputs) {
                     json modes = json::array();
                     for (auto& m : o.modes) modes.push_back({{"width", m.w}, {"height", m.h}, {"refreshHz", m.hz}});
-                    outs.push_back({{"name", o.name}, {"x", o.x}, {"y", o.y}, {"width", o.w}, {"height", o.h}, {"refreshHz", o.refreshHz}, {"primary", o.primary},
+                    outs.push_back({{"name", o.name}, {"id", o.id}, {"label", o.label}, {"x", o.x}, {"y", o.y}, {"width", o.w}, {"height", o.h}, {"refreshHz", o.refreshHz}, {"primary", o.primary},
                                     {"modes", modes}});
                 }
                 json canvasesOn = json::array();

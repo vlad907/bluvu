@@ -301,6 +301,8 @@ private:
 
 }  // namespace
 
+std::vector<MonitorIdentity> listMonitorIdentities() { return {}; }
+
 std::vector<GpuInfo> listGpus() {
     std::vector<GpuInfo> out;
     @autoreleasepool {

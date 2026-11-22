@@ -152,9 +152,23 @@ struct RendererOptions {
 
 std::unique_ptr<Renderer> createRenderer(const RendererOptions& options, std::string& error);
 
+// Which monitor a Windows display device is right now. Windows hands out the "\\.\DISPLAY3"
+// names afresh when a screen is switched off, unplugged or the PC restarts, so the name alone
+// can end up meaning another screen; the id (the monitor's model and the connector it is on)
+// stays with the monitor.
+struct MonitorIdentity {
+    std::string name;   // Windows display device ("\\.\DISPLAY3")
+    std::string id;     // the monitor's device path: its model + the GPU connector
+    std::string label;  // what the monitor calls itself ("LG TV"), may be empty
+};
+// The monitors Windows is showing a desktop on now. Empty where that can't be asked (not Windows,
+// or the query failed): then display outputs go by the display name alone, as before.
+std::vector<MonitorIdentity> listMonitorIdentities();
+
 // A monitor connected to a GPU.
 struct GpuOutputInfo {
     std::string name;            // Windows display device ("\\.\DISPLAY3")
+    std::string id, label;       // see MonitorIdentity ("" if not known)
     int x = 0, y = 0, w = 0, h = 0;  // desktop rectangle, physical pixels
     double refreshHz = 0;
     bool primary = false;

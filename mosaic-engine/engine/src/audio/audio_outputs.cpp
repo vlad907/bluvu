@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "audio/audio_device.hpp"
+#include "audio/audio_place.hpp"
 #include "audio/audio_ring.hpp"
 #include "io/video_io.hpp"
 
@@ -27,7 +28,7 @@ struct AudioOutputs::Live {
     std::shared_ptr<AudioRing> ring;
     std::atomic<float> gain{1.f};
     std::atomic<double> delaySeconds{0};
-    std::atomic<int> pair{0};
+    std::atomic<int> pair{0}, mono{0};
     std::atomic<float> peakL{0}, peakR{0};
     std::atomic<double> errorMs{0};
     std::atomic<uint64_t> jumps{0}, missing{0};
@@ -40,14 +41,12 @@ struct AudioOutputs::Live {
         head.fill(*ring, rate, heardAt, delaySeconds.load(), frames, l.data(), r.data());
         float g = gain.load(), pl = 0, pr = 0;
         std::fill(out, out + static_cast<size_t>(frames) * channels, 0.f);
-        int p = pair.load();
+        int p = pair.load(), m = mono.load();
         for (int i = 0; i < frames; ++i) {
             float a = l[i] * g, b = r[i] * g;
             pl = std::max(pl, std::fabs(a));
             pr = std::max(pr, std::fabs(b));
-            float* f = out + static_cast<size_t>(i) * channels;
-            if (p * 2 + 1 < channels) f[p * 2] = a, f[p * 2 + 1] = b;
-            else if (channels == 1) f[0] = 0.5f * (a + b);
+            placeAudioFrame(out + static_cast<size_t>(i) * channels, channels, p, m, a, b);
         }
         // Meters hold the loudest since the last status read.
         peakL = std::max(peakL.load(), pl);
@@ -107,6 +106,7 @@ void AudioOutputs::configure(const std::vector<AudioOutputConfig>& outputs, doub
         o->live->gain = c->mute ? 0.f : static_cast<float>(std::pow(10.0, c->volumeDb / 20.0));
         o->live->delaySeconds = effectiveDelayMs(*c, wallDelayMs) / 1000.0;
         o->live->pair = c->channelPair;
+        o->live->mono = c->monoChannel;
         if (!o->stream) {  // after the settings, so it never plays a moment undelayed
             auto live = o->live;
             o->stream = openAudioDevice(c->device, [live](float* out, int frames, int channels, double rate, double heardAt) {
@@ -130,7 +130,9 @@ json AudioOutputs::status() const {
         const auto& src = *o->source;
         int ch = o->stream->channels();
         std::string error = o->stream->error();
-        if (error.empty() && ch && o->cfg.channelPair * 2 + 1 >= ch && ch != 1)
+        if (error.empty() && ch && o->cfg.monoChannel > ch)
+            error = "the device has " + std::to_string(ch) + " channels: no channel " + std::to_string(o->cfg.monoChannel);
+        else if (error.empty() && ch && o->cfg.monoChannel == 0 && o->cfg.channelPair * 2 + 1 >= ch && ch != 1)
             error = "the device has " + std::to_string(ch) + " channels: no channel pair " + std::to_string(o->cfg.channelPair * 2 + 1) + "-" +
                     std::to_string(o->cfg.channelPair * 2 + 2);
         double since = steadySeconds() - src.ring->lastArrival();

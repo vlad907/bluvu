@@ -1056,9 +1056,44 @@ private:
 
 }  // namespace
 
+std::vector<MonitorIdentity> listMonitorIdentities() {
+    std::vector<MonitorIdentity> out;
+    for (int attempt = 0; attempt < 3; ++attempt) {  // the set can change between the two calls
+        UINT32 np = 0, nm = 0;
+        if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &np, &nm) != ERROR_SUCCESS || np == 0) return out;
+        std::vector<DISPLAYCONFIG_PATH_INFO> paths(np);
+        std::vector<DISPLAYCONFIG_MODE_INFO> modes(nm ? nm : 1);
+        LONG r = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &np, paths.data(), &nm, modes.data(), nullptr);
+        if (r == ERROR_INSUFFICIENT_BUFFER) continue;
+        if (r != ERROR_SUCCESS) return out;
+        paths.resize(np);
+        for (auto& p : paths) {
+            DISPLAYCONFIG_SOURCE_DEVICE_NAME src{};
+            src.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+            src.header.size = sizeof src;
+            src.header.adapterId = p.sourceInfo.adapterId;
+            src.header.id = p.sourceInfo.id;
+            DISPLAYCONFIG_TARGET_DEVICE_NAME tgt{};
+            tgt.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+            tgt.header.size = sizeof tgt;
+            tgt.header.adapterId = p.targetInfo.adapterId;
+            tgt.header.id = p.targetInfo.id;
+            if (DisplayConfigGetDeviceInfo(&src.header) != ERROR_SUCCESS || DisplayConfigGetDeviceInfo(&tgt.header) != ERROR_SUCCESS) continue;
+            MonitorIdentity m;
+            m.name = narrow(src.viewGdiDeviceName);
+            m.id = narrow(tgt.monitorDevicePath);
+            m.label = narrow(tgt.monitorFriendlyDeviceName);
+            if (!m.name.empty() && !m.id.empty()) out.push_back(m);
+        }
+        return out;
+    }
+    return out;
+}
+
 std::vector<GpuInfo> listGpus() {
     std::vector<GpuInfo> out;
     auto all = hardwareAdapters();
+    auto identities = listMonitorIdentities();
     for (size_t i = 0; i < all.size(); ++i) {
         DXGI_ADAPTER_DESC1 d{};
         all[i]->GetDesc1(&d);
@@ -1072,6 +1107,12 @@ std::vector<GpuInfo> listGpus() {
             if (FAILED(o->GetDesc(&od)) || !od.AttachedToDesktop) continue;
             GpuOutputInfo m;
             m.name = narrow(od.DeviceName);
+            for (auto& mon : identities)
+                if (mon.name == m.name) {
+                    m.id = mon.id;
+                    m.label = mon.label;
+                    break;
+                }
             m.x = od.DesktopCoordinates.left;
             m.y = od.DesktopCoordinates.top;
             m.w = od.DesktopCoordinates.right - od.DesktopCoordinates.left;

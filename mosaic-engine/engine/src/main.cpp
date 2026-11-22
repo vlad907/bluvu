@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 
+#include "core/monitor_match_test.hpp"
 #include "api/http_api.hpp"
 #include "io/ndi_test.hpp"
 #include "core/canvases.hpp"
@@ -77,6 +78,9 @@ void writeFile(const fs::path& p, const std::string& data) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    // Lists this PC's monitors and checks how display outputs follow them; starts nothing.
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "--monitors") return mosaic::monitorMatchSelfTest();
     Options opt;
     try {
         opt = parse(argc, argv);

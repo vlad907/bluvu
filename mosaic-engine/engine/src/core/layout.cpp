@@ -162,6 +162,7 @@ void to_json(json& j, const OutputConfig& o) {
              {"source", o.source},   {"pixelFormat", toString(o.pixelFormat)}, {"enabled", o.enabled}};
     if (!o.group.empty()) j["group"] = o.group;
     if (!o.display.empty()) j["display"] = o.display;
+    if (!o.display.empty() && !o.displayId.empty()) j["displayId"] = o.displayId;
     if (o.modeWidth > 0) j["displayMode"] = {{"width", o.modeWidth}, {"height", o.modeHeight}, {"refreshHz", o.modeHz}};
     if (o.delayMs > 0) j["delayMs"] = o.delayMs;
     if (!o.color.neutral())
@@ -190,7 +191,11 @@ void patchOutput(OutputConfig& o, const json& p) {
     o.source = p.value("source", o.source);
     if (p.contains("pixelFormat")) o.pixelFormat = pixelFormatFrom(p.at("pixelFormat").get<std::string>());
     o.group = p.value("group", o.group);
+    // Another monitor chosen by its display name alone: which monitor that is gets learnt again.
+    if (p.contains("display") && !p.contains("displayId") && p.value("display", o.display) != o.display) o.displayId.clear();
     o.display = p.value("display", o.display);
+    o.displayId = p.value("displayId", o.displayId);
+    if (o.display.empty()) o.displayId.clear();
     if (p.contains("displayMode")) {
         const auto& m = p.at("displayMode");
         if (m.is_object() && m.value("width", 0) > 0 && m.value("height", 0) > 0) {
@@ -282,6 +287,7 @@ void to_json(json& j, const AudioOutputConfig& a) {
     j = json{{"id", a.id},           {"name", a.name},         {"device", a.device},       {"deviceName", a.deviceName},
              {"source", a.source},   {"channelPair", a.channelPair}, {"volumeDb", a.volumeDb}, {"mute", a.mute},
              {"matchWall", a.matchWall}, {"delayMs", a.delayMs}, {"enabled", a.enabled}};
+    if (a.monoChannel > 0) j["monoChannel"] = a.monoChannel;
 }
 
 void from_json(const json& j, AudioOutputConfig& a) {
@@ -291,6 +297,7 @@ void from_json(const json& j, AudioOutputConfig& a) {
     a.deviceName = j.value("deviceName", a.deviceName);
     a.source = j.value("source", a.source);
     a.channelPair = j.value("channelPair", a.channelPair);
+    a.monoChannel = j.value("monoChannel", a.monoChannel);
     a.volumeDb = j.value("volumeDb", a.volumeDb);
     a.mute = j.value("mute", a.mute);
     a.matchWall = j.value("matchWall", a.matchWall);
@@ -487,6 +494,7 @@ std::vector<std::string> normalize(Layout& l) {
         ids.insert(a.id);
         if (a.name.empty()) a.name = "Audio " + std::to_string(n);
         a.channelPair = std::clamp(a.channelPair, 0, 31);
+        a.monoChannel = std::clamp(a.monoChannel, 0, 64);
         a.volumeDb = std::clamp(a.volumeDb, -60.0, 12.0);
         a.delayMs = std::clamp(a.delayMs, a.matchWall ? -1000.0 : 0.0, 5000.0);
     }

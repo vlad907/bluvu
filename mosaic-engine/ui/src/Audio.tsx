@@ -142,13 +142,23 @@ export function AudioSection({ layout, onChanged, onError }: { layout: Layout; o
                   {o.device && info && !dev && <option value={o.device}>{o.deviceName || "a device"} (not connected)</option>}
                 </select>
               </label>
-              {pairs > 1 && (
-                <label className="field">
-                  <span>Channels</span>
-                  <select value={o.channelPair} onChange={(e) => patch(o.id, { channelPair: +e.target.value })}>
-                    {Array.from({ length: pairs }, (_, i) => (
-                      <option key={i} value={i}>
-                        {i * 2 + 1}–{i * 2 + 2}
+              {(
+                <label className="field" title="Stereo on a pair of the device's outputs, or left and right mixed onto one output alone (a mono feed per connector, for a DSP's inputs).">
+                  <span>Outputs</span>
+                  <select
+                    value={o.monoChannel ? `m${o.monoChannel}` : `p${o.channelPair}`}
+                    onChange={(e) =>
+                      patch(o.id, e.target.value[0] === "m" ? { monoChannel: +e.target.value.slice(1) } : { monoChannel: 0, channelPair: +e.target.value.slice(1) })
+                    }
+                  >
+                    {Array.from({ length: Math.max(pairs, 1) }, (_, i) => (
+                      <option key={`p${i}`} value={`p${i}`}>
+                        {i * 2 + 1}–{i * 2 + 2} stereo
+                      </option>
+                    ))}
+                    {Array.from({ length: Math.max(dev?.channels ?? 2, o.monoChannel ?? 0) }, (_, i) => (
+                      <option key={`m${i + 1}`} value={`m${i + 1}`}>
+                        {i + 1} mono
                       </option>
                     ))}
                   </select>

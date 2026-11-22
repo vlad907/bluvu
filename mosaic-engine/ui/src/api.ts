@@ -12,6 +12,7 @@ export interface AudioOutput {
   deviceName?: string;
   source: string; // NDI source name
   channelPair: number; // 0 = channels 1-2, 1 = 3-4…
+  monoChannel?: number; // 0 / absent = stereo on that pair; N = left + right mixed onto channel N alone
   volumeDb: number;
   mute: boolean;
   matchWall: boolean; // delay = the wall's delay + delayMs (a trim)
@@ -179,6 +180,7 @@ export interface Output {
   pixelFormat: "uyvy" | "bgra";
   group?: string; // id of the wall group that generated it
   color?: ColorAdjust; // colour correction (absent = neutral)
+  displayId?: string; // which monitor `display` was when chosen: the output follows it and waits while it's off
   display?: string; // a monitor on the canvas's GPU ("\\\\.\\DISPLAY3"): sent there full screen instead of as NDI
   displayMode?: DisplayMode | null; // display outputs: the mode the monitor is put in (absent = as Windows has it)
   delayMs?: number; // display outputs: picture held back this long (0..1000), to line up with NDI walls
@@ -384,7 +386,8 @@ export interface GpuInfo {
   index: number;
   name: string;
   memoryMB: number;
-  outputs: { name: string; x: number; y: number; width: number; height: number; refreshHz: number; primary: boolean; modes?: DisplayMode[] }[];
+  // id: the monitor itself (model + connector), which stays when Windows renumbers; label: what it calls itself
+  outputs: { name: string; id?: string; label?: string; x: number; y: number; width: number; height: number; refreshHz: number; primary: boolean; modes?: DisplayMode[] }[];
   canvases: string[];
 }
 
