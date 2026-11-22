@@ -682,9 +682,14 @@ with tempfile.TemporaryDirectory() as tmp:
         check(len(json.loads(get("/api/layout")[1])["outputs"]) == 5, "the first canvas is untouched")
         pause(1.5)
         check(wait_for(lambda: frame_id(c2) > 5, timeout=30), "the second canvas renders at the same time")
-        call("PATCH", "/api/outputs/out-5", {"display": "\\\\.\\DISPLAY98"})
+        # A PC that knows its monitors makes an output wait for one that isn't there, before any
+        # question of who uses it: so there this takes a monitor that exists (the first listed).
+        listed = [l.split()[0] for l in subprocess.run([args.engine, "--monitors"], capture_output=True, text=True, timeout=60).stdout.splitlines()
+                  if l.strip().startswith("\\\\.\\")]
+        shared = listed[0] if listed else "\\\\.\\DISPLAY98"
+        call("PATCH", "/api/outputs/out-5", {"display": shared})
         pause(0.5)
-        call("PATCH", "/api/outputs/w2-1", {"display": "\\\\.\\DISPLAY98"}, canvas=c2)
+        call("PATCH", "/api/outputs/w2-1", {"display": shared}, canvas=c2)
         pause(1)
         e2 = next(o for o in json.loads(get("/api/metrics", canvas=c2)[1])["outputs"] if o["id"] == "w2-1").get("error", "")
         check("already used by" in e2, f"a monitor another canvas shows is refused ({e2})")
