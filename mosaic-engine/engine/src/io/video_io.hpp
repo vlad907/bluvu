@@ -80,6 +80,10 @@ public:
     virtual std::unique_ptr<VideoSink> createSender(const std::string& streamName) = 0;
     virtual std::unique_ptr<NdiReceiver> createReceiver(const std::string& sourceName) = 0;
     virtual std::unique_ptr<NdiAudioInput> createAudioReceiver(const std::string& sourceName, std::shared_ptr<AudioRing> ring) = 0;
+    // NDI|HX sources (H.264 / H.265, from encoder boxes) are decoded by the NDI library: on the CPU,
+    // or, when asked, on the GPU's video decoder. Applies to the sources connected now and later.
+    virtual void setGpuDecode(bool) {}
+    virtual bool gpuDecode() const { return false; }
 };
 
 // Returns nullptr (with a reason) when built without the SDK or the runtime is missing.

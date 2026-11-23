@@ -550,6 +550,12 @@ with tempfile.TemporaryDirectory() as tmp:
         check(len(restored["outputs"]) == 5 and not restored["walls"], "restoring the oldest version brings back the original layout")
         check(len(json.loads(get("/api/layouts/ci/history")[1])["history"]) == len(hist) + 1, "the replaced version is kept too")
 
+        print("NDI|HX decoding setting:", flush=True)
+        check(json.loads(get("/api/system/ndi")[1])["gpuDecode"] is False, "NDI|HX inputs are decoded on the CPU unless asked otherwise")
+        check(call("PUT", "/api/system/ndi", {"gpuDecode": True})["gpuDecode"] is True, "GPU decoding can be switched on")
+        check(json.load(open(f"{tmp}/data/engine.json")).get("ndiGpuDecode") is True, "and is kept for the next start (data/engine.json)")
+        check(call("PUT", "/api/system/ndi", {"gpuDecode": False})["gpuDecode"] is False, "and off again")
+
         print("endpoints:", flush=True)
         r = call("POST", "/api/endpoints/checkin", {"host": "WALL-PC.example.org", "dashboardPort": 9000, "screens": [], "panels": []})
         check(r["endpoint"] is None, "an unknown PC gets no assignment")

@@ -424,6 +424,7 @@ Across the whole source there's also:
 | DELETE | `/api/canvases/:id` | stop a canvas (its layout stays saved; not the last one) |
 | GET | `/api/gpus` | the media server's GPUs, the monitors on each (with the `modes` each offers), and the canvases on each |
 | GET | `/api/capture` | capture devices, and the open ones (size, fps, viewers, error) |
+| GET / PUT | `/api/system/ndi` | `{"gpuDecode": bool}`: NDI\|HX inputs (H.264 / H.265 from encoder boxes) decoded on the GPU's video decoder instead of the CPU. Off by default; in the editor under Settings → Media |
 | GET | `/api/system/decoders` | Windows' video decoders per codec, and which are hardware (why a video decodes in software) |
 | GET | `/api/layouts` | saved layouts |
 | GET / DELETE | `/api/layouts/:id` | |

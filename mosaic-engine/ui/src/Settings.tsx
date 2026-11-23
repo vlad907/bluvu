@@ -4,6 +4,7 @@ import { api, storeKey, storedKey, type Layout, type LayoutVersion, type MediaFi
 import { AudioSection } from "./Audio";
 import { BackgroundSettings } from "./Arrangement";
 import { CanvasSettings } from "./CanvasSettings";
+import { NdiSettings } from "./NdiSettings";
 import { UpdatesSection } from "./Updates";
 
 const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -70,13 +71,42 @@ export function MediaSelect({
   );
 }
 
-// Settings section (left panel): layout history and files, media, signal loss, access.
+// The pages inside Settings. One shows at a time; the menu at the top of the panel switches between them.
+const TABS = [
+  ["canvas", "Canvas", "Canvas size, background and playlists"],
+  ["layout", "Layout", "Export or import this layout, and its history"],
+  ["media", "Media", "Images and videos, and what shows when a stream drops"],
+  ["audio", "Audio", "Sound outputs and levels"],
+  ["access", "Access", "Editor PIN and API key"],
+  ["updates", "Updates", "Engine and receiver versions"],
+] as const;
+type Tab = (typeof TABS)[number][0];
+const TAB_KEY = "mosaic.settingsTab";
+
+// Settings section (left panel): canvas, layout history and files, media, signal loss, audio, access, updates.
 export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; onChanged: () => void; onError: (e: unknown) => void }) {
   const [history, setHistory] = useState<LayoutVersion[]>([]);
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [security, setSecurity] = useState<{ pinSet: boolean; apiKeySet: boolean } | null>(null);
   const [uploading, setUploading] = useState<{ name: string; fraction: number } | null>(null);
   const [folder, setFolder] = useState("");
+  // The page opened last is remembered in this browser.
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const t = localStorage.getItem(TAB_KEY);
+      return TABS.some(([id]) => id === t) ? (t as Tab) : "canvas";
+    } catch {
+      return "canvas";
+    }
+  });
+  const openTab = (t: Tab) => {
+    setTab(t);
+    try {
+      localStorage.setItem(TAB_KEY, t);
+    } catch {
+      /* per-browser preference only */
+    }
+  };
   const importInput = useRef<HTMLInputElement>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
 
@@ -142,8 +172,21 @@ export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; 
 
   return (
     <>
+      <nav className="settings-tabs" role="tablist" aria-label="Settings pages">
+        {TABS.map(([id, label, title]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => openTab(id)} title={title}>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Every page stays loaded (an upload or a level meter keeps going); only the open one is shown. */}
+      <div className="settings-page" hidden={tab !== "canvas"}>
       <CanvasSettings layout={layout} onChanged={onChanged} onError={onError} />
       <BackgroundSettings onChanged={onChanged} onError={onError} />
+      </div>
+
+      <div className="settings-page" hidden={tab !== "layout"}>
       <section className="list">
         <div className="list-head">
           <h3>Layout file</h3>
@@ -195,7 +238,9 @@ export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; 
           </div>
         ))}
       </section>
+      </div>
 
+      <div className="settings-page" hidden={tab !== "media"}>
       <section className="list">
         <div className="list-head">
           <h3>Media</h3>
@@ -265,8 +310,14 @@ export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; 
         />
       </section>
 
-      <AudioSection layout={layout} onChanged={onChanged} onError={onError} />
+      <NdiSettings onError={onError} />
+      </div>
 
+      <div className="settings-page" hidden={tab !== "audio"}>
+      <AudioSection layout={layout} onChanged={onChanged} onError={onError} />
+      </div>
+
+      <div className="settings-page" hidden={tab !== "access"}>
       <section className="list">
         <div className="list-head">
           <h3>Access</h3>
@@ -294,8 +345,11 @@ export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; 
           </button>
         )}
       </section>
+      </div>
 
+      <div className="settings-page" hidden={tab !== "updates"}>
       <UpdatesSection onError={onError} />
+      </div>
     </>
   );
 }

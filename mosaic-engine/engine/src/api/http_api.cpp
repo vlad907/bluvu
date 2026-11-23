@@ -295,6 +295,34 @@ struct HttpApi::Impl {
         std::filesystem::rename(tmp, path, ec);
     }
 
+    // Settings of this PC's engine, the same for every canvas (data/engine.json).
+    std::mutex engineSettingsMutex;
+    bool ndiGpuDecode = false;  // NDI|HX inputs decoded on the GPU's video decoder instead of the CPU
+
+    std::filesystem::path engineSettingsFile() const { return canvases.mediaDir().parent_path() / "engine.json"; }
+
+    void loadEngineSettings() {
+        try {
+            std::ifstream in(engineSettingsFile());
+            if (in) ndiGpuDecode = json::parse(in).value("ndiGpuDecode", false);
+        } catch (const std::exception& e) {
+            std::cerr << "[http] cannot read " << engineSettingsFile() << ": " << e.what() << "\n";
+        }
+        if (NdiSystem* ndi = canvases.ndi()) ndi->setGpuDecode(ndiGpuDecode);
+    }
+
+    void saveEngineSettings() {
+        auto path = engineSettingsFile();
+        auto tmp = path;
+        tmp += ".tmp";
+        {
+            std::ofstream out(tmp, std::ios::trunc);
+            out << json{{"ndiGpuDecode", ndiGpuDecode}}.dump(2) << "\n";
+        }
+        std::error_code ec;
+        std::filesystem::rename(tmp, path, ec);
+    }
+
     static bool sameKey(const std::string& a, const std::string& b) {
         if (a.size() != b.size()) return false;
         unsigned char diff = 0;  // no early exit, so timing doesn't reveal how much matched
@@ -661,6 +689,7 @@ struct HttpApi::Impl {
 
         // ---- access: optional editor PIN and API key ----
         loadSecurity();
+        loadEngineSettings();
         s.set_pre_routing_handler([this](const httplib::Request& req, httplib::Response& res) {
             // Which canvas this request is about: the editor sends X-Mosaic-Canvas (?canvas= for
             // event streams, which can't set headers). None = the primary canvas.
@@ -1669,6 +1698,20 @@ struct HttpApi::Impl {
         }));
         // Video decoders Windows has, per codec, and which are hardware (GPU). Finds out why a
         // video decodes in software (e.g. the AV1 / HEVC Video Extension missing or GPU-less).
+        // How NDI|HX inputs (H.264 / H.265 from encoder boxes) are decoded: {"gpuDecode": bool}.
+        // "available" is false on an engine without NDI.
+        s.Get("/api/system/ndi", guard([this](const httplib::Request&, httplib::Response& res) {
+            std::lock_guard lock(engineSettingsMutex);
+            sendJson(res, {{"gpuDecode", ndiGpuDecode}, {"available", canvases.ndi() != nullptr}});
+        }));
+        s.Put("/api/system/ndi", guard([this](const httplib::Request& req, httplib::Response& res) {
+            json body = parseBody(req);
+            std::lock_guard lock(engineSettingsMutex);
+            ndiGpuDecode = body.value("gpuDecode", ndiGpuDecode);
+            saveEngineSettings();
+            if (NdiSystem* ndi = canvases.ndi()) ndi->setGpuDecode(ndiGpuDecode);
+            sendJson(res, {{"gpuDecode", ndiGpuDecode}, {"available", canvases.ndi() != nullptr}});
+        }));
         s.Get("/api/system/decoders", guard([](const httplib::Request&, httplib::Response& res) {
             json list = json::array();
             for (auto& d : listVideoDecoders()) list.push_back({{"codec", d.codec}, {"name", d.name}, {"hardware", d.hardware}});

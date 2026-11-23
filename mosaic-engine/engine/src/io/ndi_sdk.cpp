@@ -94,7 +94,7 @@ public:
         ~Frame() { NDIlib_recv_free_video_v2(h->recv, &v); }
     };
 
-    explicit NdiShared(const std::string& sourceName) : name_(sourceName), h_(std::make_shared<Handle>()) {
+    NdiShared(const std::string& sourceName, bool gpuDecode) : name_(sourceName), h_(std::make_shared<Handle>()) {
         NDIlib_source_t src;
         src.p_ndi_name = name_.c_str();
         NDIlib_recv_create_v3_t desc;
@@ -107,6 +107,7 @@ public:
         desc.allow_video_fields = false;
         desc.p_ndi_recv_name = "Mosaic Engine";
         h_->recv = NDIlib_recv_create_v3(&desc);
+        if (h_->recv && gpuDecode) askGpuDecode(true);
         if (h_->recv) thread_ = std::thread([this] { run(); });
     }
     ~NdiShared() {
@@ -117,6 +118,18 @@ public:
     }
 
     bool ok() const { return h_->recv != nullptr; }
+    // Asks the NDI library to decode this source's compressed video (NDI|HX) on the GPU's video
+    // decoder, or back on the CPU. Both spellings are in use (the SDK manual's and the one in its
+    // examples); the library ignores what it doesn't know, and full NDI isn't affected.
+    void askGpuDecode(bool on) {
+        if (!h_->recv) return;
+        for (const char* ask : {on ? "<ndi_video_codec type=\"hardware\"/>" : "<ndi_video_codec type=\"software\"/>",
+                                on ? "<ndi_hwaccel enabled=\"true\"/>" : "<ndi_hwaccel enabled=\"false\"/>"}) {
+            NDIlib_metadata_frame_t m;
+            m.p_data = const_cast<char*>(ask);
+            NDIlib_recv_send_metadata(h_->recv, &m);
+        }
+    }
     // The newest frame and its number (0 = none yet).
     std::shared_ptr<Frame> latest(uint64_t& seq) {
         std::lock_guard l(m_);
@@ -299,12 +312,21 @@ public:
         std::lock_guard l(sharedMutex_);
         auto shared = shared_[sourceName].lock();
         if (!shared) {
-            shared = std::make_shared<NdiShared>(sourceName);
+            shared = std::make_shared<NdiShared>(sourceName, gpuDecode_);
             if (!shared->ok()) return nullptr;
             shared_[sourceName] = shared;
         }
         return std::make_unique<NdiInput>(shared);
     }
+
+    void setGpuDecode(bool on) override {
+        std::lock_guard l(sharedMutex_);
+        if (gpuDecode_ == on) return;
+        gpuDecode_ = on;
+        for (auto& entry : shared_)
+            if (auto shared = entry.second.lock()) shared->askGpuDecode(on);
+    }
+    bool gpuDecode() const override { return gpuDecode_; }
 
     std::unique_ptr<NdiAudioInput> createAudioReceiver(const std::string& sourceName, std::shared_ptr<AudioRing> ring) override {
         auto rx = std::make_unique<NdiAudio>(sourceName, std::move(ring));
@@ -314,6 +336,7 @@ public:
 
 private:
     NDIlib_find_instance_t find_ = nullptr;
+    std::atomic<bool> gpuDecode_{false};
     std::mutex sharedMutex_;
     std::map<std::string, std::weak_ptr<NdiShared>> shared_;  // by source name
     std::mutex m_;

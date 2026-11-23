@@ -527,6 +527,9 @@ export const api = {
   security: () => call<{ pinSet: boolean; apiKeySet: boolean; locked: boolean }>("GET", "/api/security"),
   putSecurity: (s: { editorPin?: string; apiKey?: string }) => call<{ pinSet: boolean; apiKeySet: boolean }>("PUT", "/api/security", s),
   checkKey: () => call("POST", "/api/security/check", {}),
+  // How this engine decodes NDI|HX inputs (H.264 / H.265 from encoder boxes): on the GPU or the CPU.
+  ndiSettings: () => call<{ gpuDecode: boolean; available: boolean }>("GET", "/api/system/ndi"),
+  putNdiSettings: (s: { gpuDecode: boolean }) => call<{ gpuDecode: boolean; available: boolean }>("PUT", "/api/system/ndi", s),
   history: (layoutId: string) => call<{ history: LayoutVersion[] }>("GET", `/api/layouts/${layoutId}/history`).then((r) => r.history),
   restore: (layoutId: string, version: string) => call("POST", `/api/layouts/${layoutId}/history/${version}/restore`, {}),
   getLayout: (id: string) => call<Layout>("GET", `/api/layouts/${id}`),
