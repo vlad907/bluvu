@@ -163,6 +163,8 @@ export async function licenseFile(env, lic, machine) {
     updatesUntil: lic.expires ? iso(lic.expires) : "",
     machine,
     trial: !!lic.trial,
+    // A paid subscription that renews by itself: the editor says "renews on" instead of asking to renew.
+    renews: !!lic.subscription_id && (lic.billing_status === "active" || lic.billing_status === "trialing"),
   };
   return signPayload(env, payload);
 }

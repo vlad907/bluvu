@@ -5,78 +5,14 @@
 //   npm test            (needs `npm ci` once)
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
-import { createHash, createPublicKey, verify } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { startServer, openLicense as open } from "./harness.mjs";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const PORT = 8790 + Math.floor(Math.random() * 100);
-const BASE = `http://127.0.0.1:${PORT}`;
-const ADMIN = "test-admin-token-0123456789";
-// The published test key (mosaic-engine/tools/license-test-key.txt).
-const SEED = createHash("sha512").update("bluvu-license-test-key: published, never trust in a venue build").digest().subarray(0, 32);
-const TEST_PUBLIC_KEY = "de7a9c609cbaca3b3766692fc2ebeca0c3093be28e4d18508ce5b1e93bf46136";
-
-let server, dir;
-const wrangler = join(root, "node_modules", ".bin", process.platform === "win32" ? "wrangler.cmd" : "wrangler");
-
+let srv, BASE, post, admin;
 before(async () => {
-  dir = mkdtempSync(join(tmpdir(), "bluvu-license-test-"));
-  const vars = join(dir, "test.vars");
-  writeFileSync(vars, `SIGNING_SEED=${SEED.toString("hex")}\nSIGNING_KID=test\nADMIN_TOKEN=${ADMIN}\nMOVES_PER_YEAR=2\n`);
-  const persist = join(dir, "state");
-  execFileSync(wrangler, ["d1", "migrations", "apply", "bluvu-license", "--local", "--persist-to", persist], { cwd: root, stdio: "ignore", shell: process.platform === "win32" });
-  server = spawn(wrangler, ["dev", "--local", "--port", String(PORT), "--persist-to", persist, "--env-file", vars], {
-    cwd: root,
-    stdio: "ignore",
-    shell: process.platform === "win32",
-  });
-  for (let i = 0; i < 120; i++) {
-    try {
-      if ((await fetch(`${BASE}/health`)).ok) return;
-    } catch {}
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error("wrangler dev didn't start");
+  srv = await startServer({ MOVES_PER_YEAR: 2 });
+  ({ base: BASE, post, admin } = srv);
 });
-
-after(() => {
-  // On Windows wrangler runs under a shell and its workerd child outlives a plain kill.
-  if (process.platform === "win32" && server?.pid) {
-    try {
-      execFileSync("taskkill", ["/F", "/T", "/PID", String(server.pid)], { stdio: "ignore" });
-    } catch {}
-  }
-  server?.kill();
-  try {
-    rmSync(dir, { recursive: true, force: true });
-  } catch {}
-});
-
-const post = async (path, body, headers = {}) => {
-  const r = await fetch(BASE + path, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
-  return { status: r.status, body: await r.json() };
-};
-const admin = async (method, path, body) => {
-  const r = await fetch(BASE + "/admin/api" + path, {
-    method,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${ADMIN}` },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  return { status: r.status, body: await r.json() };
-};
-
-// Opens a license file like the engine: the signature over the payload's bytes, with the test key.
-function open(fileText) {
-  const f = JSON.parse(fileText);
-  const bytes = Buffer.from(f.payload, "base64url");
-  const key = createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(TEST_PUBLIC_KEY, "hex")]), format: "der", type: "spki" });
-  assert.ok(verify(null, bytes, key, Buffer.from(f.sig, "base64url")), "signature verifies with the test public key");
-  return JSON.parse(bytes.toString());
-}
+after(() => srv?.stop());
 
 const PC1 = { machineGuid: "g1", smbiosUuid: "u1", systemDisk: "d1" };
 const PC2 = { machineGuid: "g2", smbiosUuid: "u2", systemDisk: "d2" };

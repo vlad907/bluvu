@@ -184,7 +184,7 @@ Windows CI green, shown working in test mode before the next one starts.
    banners, limit messages.
 3. **License server** (**built, runs locally**; deploying needs your Cloudflare account) with the admin
    view; issue the inside bar's comp license once deployed.
-4. **Payments** in sandbox: checkout, webhooks, renewals, upgrade, failed payment, portal.
+4. **Payments** in sandbox (**built**, see "Phase 4 as built"): checkout, webhooks, renewals, upgrade, failed payment, portal.
 5. **Release bundles and update channel** (§1 B–D), moving MEDIA-SERVER and rcv01 over, with CI green
    before anything reaches them; then make the repos private (§1 E).
 6. **Turn enforcement on** (comp license already on MEDIA-SERVER), website checkout buttons, success,
@@ -263,4 +263,44 @@ All answered: see **Decisions** at the top. Still open: the domain name.
 - Tests: `license-server/test/api.test.mjs` (14 API tests, signatures checked with Node's own Ed25519)
   and `mosaic-engine/tools/license_server_check.py` (an engine against the server). CI runs both.
 - Not done here: rate limiting on `/v1/*` (Cloudflare's rate-limiting rules at deploy time), emails
-  (phase 4 with payments).
+  (done in phase 4).
+
+## Phase 4 as built
+
+- `license-server/src/paddle.js`: Paddle Billing webhooks at `POST /webhooks/paddle`, checked with
+  Paddle's signature (HMAC-SHA256 over `ts:body`, 5 minutes' tolerance, several `h1` during a secret
+  rotation). Each event is applied once.
+  - `subscription.*` and `transaction.completed` all land in one function: the first one makes the
+    license (plan from `PADDLE_PRICES`, end date = the billing period's end, 30 days' grace) and emails
+    the key; later ones move the end date out (never in), change the plan (Starter → Venue raises the
+    screens on the media server's next refresh), and track the billing status.
+  - Events older than the last one applied don't change the plan or status (Paddle doesn't promise
+    order). A unique index stops two racing webhooks making two licenses.
+  - A failed payment (`past_due`) leaves the license valid to its end date, then grace, while Paddle
+    retries the card. Cancelling keeps it to the end of what was paid.
+  - **Webhooks never revoke or shorten a license**: refunds and chargebacks are revoked by hand in the
+    admin view.
+  - The customer's email comes from the `customer.*` webhooks or Paddle's API. If neither has it yet,
+    the license waits on a placeholder and the key is emailed when the address arrives. An address that
+    already has an account (a trial, say) gets the license added to it.
+- Checkout: `GET /buy` (Paddle.js overlay, sandbox banner) → `GET /purchase?txn=` waits for the webhook
+  and shows the key (`GET /v1/purchase`, for a week after the purchase).
+- Billing: `GET /billing` → `POST /v1/billing {key, action}` **emails the billing contact** a signed link
+  (an hour, `LINK_SECRET`), so holding the key, which venue staff may, isn't enough to change what's
+  paid.
+  - The link opens Paddle's customer portal (card, receipts, cancelling), or the upgrade page, which
+    shows Paddle's prorated price and confirms the plan change. The license follows through the webhook.
+  - Enterprise is by quote, by hand.
+- Emails: every one is recorded in `emails` (the admin view lists them and has **Email the key**). They
+  go out through Cloudflare Email Service once the `EMAIL` binding exists (the domain onboarded). Until
+  then nothing is sent; `EMAIL_OUTBOX_ONLY=1` lets development carry on as if it had been.
+- License files carry `renews: true` while the subscription is active. The editor then says "Renews on
+  …" without a Renew prompt or a top-bar warning. A **Billing** button (and **Upgrade** on Starter) goes
+  to the server's `/billing` (`links.billing` in `GET /api/license`).
+- Tests: `license-server/test/payments.test.mjs` (11 tests against a fake Paddle API: signatures and
+  replays, a purchase, duplicate and out-of-order events, renewal, upgrade by emailed link, failed
+  payment, cancelling, the customer arriving late, the portal, refusals, the pages), and an engine
+  activating a license bought through a webhook and picking up its upgrade in `license_server_check.py`.
+- Not tried against Paddle's real sandbox: that needs a Paddle sandbox account (yours). The payload
+  shapes follow Paddle Billing's documented events. The first real sandbox purchase is the check, and
+  the steps are in `license-server/README.md`.

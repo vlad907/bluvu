@@ -18,10 +18,11 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 export function licenseSummary(l: LicenseInfo): { text: string; level: "ok" | "warn" | "bad" } {
   switch (l.state) {
     case "valid":
-      return { text: l.expires ? `Valid until ${day(l.expires)}` : "Doesn't expire", level: "ok" };
+      return { text: !l.expires ? "Doesn't expire" : l.renews ? `Renews on ${day(l.expires)}` : `Valid until ${day(l.expires)}`, level: "ok" };
     case "trial":
       return { text: `${plural(l.daysLeft, "day")} left`, level: l.daysLeft <= 3 ? "warn" : "ok" };
     case "expiring":
+      if (l.renews) return { text: `Renews on ${day(l.expires)}`, level: "ok" };
       return { text: `Runs out in ${plural(l.daysLeft, "day")} (${day(l.expires)})`, level: "warn" };
     case "grace":
       return { text: `Ran out ${day(l.expires)} · ${plural(l.daysLeft, "day")} left to renew before editing pauses`, level: "warn" };
@@ -40,7 +41,8 @@ export function LicensePill({ info, onOpen }: { info: LicenseInfo | null; onOpen
   if (!info) return null;
   const s = info.state;
   let text = "";
-  if (s === "expiring") text = `License: ${plural(info.daysLeft, "day")} left`;
+  if (s === "expiring" && info.renews) text = "";
+  else if (s === "expiring") text = `License: ${plural(info.daysLeft, "day")} left`;
   else if (s === "grace") text = `License ran out: renew within ${plural(info.daysLeft, "day")}`;
   else if (s === "trial") text = `Trial: ${plural(info.daysLeft, "day")} left`;
   else if (s === "expired") text = info.trial ? "Trial ended" : "License ran out";
@@ -142,7 +144,8 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
   const verified = info.state !== "none" && info.state !== "invalid";
   const max = info.maxScreens;
   const used = info.used.screens;
-  const needsRenewal = info.state === "expiring" || info.state === "grace" || info.state === "expired";
+  const needsRenewal = (info.state === "expiring" && !info.renews) || info.state === "grace" || info.state === "expired";
+  const paidPlan = info.plan === "starter" || info.plan === "venue";
 
   return (
     <section className="list license" id="license">
@@ -192,13 +195,13 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
           </a>
         )}
         {(!verified || (info.plan !== "enterprise" && info.plan !== "comp")) && (
-          <a className="button" href={info.links.buy} target="_blank" rel="noreferrer">
+          <a className="button" href={verified && info.plan === "starter" ? info.links.billing : info.links.buy} target="_blank" rel="noreferrer">
             {verified ? "Upgrade" : "Buy a license"}
           </a>
         )}
-        {verified && (
-          <a className="button ghost" href={info.links.account} target="_blank" rel="noreferrer">
-            Account
+        {verified && paidPlan && (
+          <a className="button ghost" href={info.links.billing} target="_blank" rel="noreferrer" title="Card, receipts, upgrading or cancelling: a link is emailed to the billing contact">
+            Billing
           </a>
         )}
       </div>

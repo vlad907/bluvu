@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev --local --port 8787",
     "db:local": "wrangler d1 migrations apply bluvu-license --local",
-    "test": "node --test test/api.test.mjs"
+    "test": "node --test --test-concurrency=1 test/api.test.mjs test/payments.test.mjs"
   },
   "devDependencies": {
     "wrangler": "4.156.2"

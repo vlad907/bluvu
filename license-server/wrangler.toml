@@ -13,6 +13,19 @@ ADMIN_EMAILS = ""
 MOVES_PER_YEAR = "3"
 TRIAL_DAYS = "14"
 GRACE_DAYS = "30"
+SERVER_URL = "https://license.bluvu.example"   # this server's public address (links in emails)
+# Payments (Paddle Billing). "sandbox" until the owner says go live; then "production" and the live
+# API URL (https://api.paddle.com). Secrets, never here: PADDLE_WEBHOOK_SECRET, PADDLE_API_KEY, LINK_SECRET.
+PADDLE_ENV = "sandbox"
+PADDLE_API_URL = "https://sandbox-api.paddle.com"
+PADDLE_CLIENT_TOKEN = ""   # client-side token (public by design), from Paddle → Developer tools
+PADDLE_PRICES = "{}"       # {"starter": "pri_...", "venue": "pri_..."} from the Paddle catalog
+EMAIL_FROM = "licenses@bluvu.example"
+
+# Emails (license keys, billing links) through Cloudflare Email Service, once the domain is onboarded:
+# [[send_email]]
+# name = "EMAIL"
+# Without it, emails are only recorded (the admin view shows them).
 
 [[d1_databases]]
 binding = "DB"

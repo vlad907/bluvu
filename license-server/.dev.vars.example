@@ -3,3 +3,9 @@
 SIGNING_SEED=5d0c51ac278081a92fa815952cb97a07218eb421c070d45b1a0ea122df2e2a8a
 SIGNING_KID=test
 ADMIN_TOKEN=local-dev-admin-token
+# Payments, locally: a made-up webhook secret (tests sign their own events with it) and the secret for
+# emailed billing links. Real Paddle sandbox keys go in .dev.vars only, never committed.
+PADDLE_WEBHOOK_SECRET=local-dev-webhook-secret
+LINK_SECRET=local-dev-link-secret-0123456789abcdef
+# PADDLE_API_KEY=
+EMAIL_OUTBOX_ONLY=1

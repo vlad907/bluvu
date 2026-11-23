@@ -7,6 +7,11 @@
 //   POST /v1/offline     {code}                        -> license file for an offline request code
 //                                                         (key "TRIAL" in the code starts a trial)
 //   GET  /activate                                     -> the offline activation page
+//   POST /webhooks/paddle                              -> Paddle's signed notifications (paddle.js)
+//   GET  /v1/purchase?txn=                             -> the key after a checkout, once the webhook made it
+//   POST /v1/billing     {key, action, plan?}          -> emails the billing contact a portal / upgrade link
+//   GET  /buy, /purchase, /billing                     -> sandbox checkout, the key after it, billing
+//   GET  /billing/portal?t=, GET|POST /billing/upgrade -> what the emailed links open
 //   GET  /health
 //   /admin, /admin/api/*                               -> the admin view (admin.js)
 //
@@ -14,7 +19,10 @@
 
 import { activate, cleanMachine, getLicense, getLicenseByKey, HttpError, readRequestCode, refresh, release, startTrial } from "./core.js";
 import { handleAdmin } from "./admin.js";
-import { activatePage } from "./pages.js";
+import { activatePage, billingPage, buyPage, messagePage, purchasePage, upgradePage } from "./pages.js";
+import { handleWebhook, portalUrl, prices, purchase, requestBillingLink, upgradeConfirm, upgradePreview } from "./paddle.js";
+
+const html = (text, status = 200) => new Response(text, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
@@ -39,6 +47,33 @@ async function route(request, env) {
   if (path === "/activate" && method === "GET") return new Response(activatePage(env), { headers: { "Content-Type": "text/html; charset=utf-8" } });
   if (path === "/admin" || path.startsWith("/admin/")) return handleAdmin(request, env, path);
 
+  // ---- payments ----
+  if (path === "/webhooks/paddle" && method === "POST") return json(await handleWebhook(request, env));
+  if (path === "/v1/purchase" && method === "GET") return json(await purchase(env, url.searchParams.get("txn")));
+  if (method === "GET" && path === "/buy") return html(buyPage(env, prices(env)));
+  if (method === "GET" && path === "/purchase") return html(purchasePage(env));
+  if (method === "GET" && path === "/billing") return html(billingPage(env, prices(env)));
+  if (path.startsWith("/billing/")) {
+    // Pages, so errors are pages too.
+    try {
+      if (path === "/billing/portal" && method === "GET") return Response.redirect(await portalUrl(env, url.searchParams.get("t")), 303);
+      if (path === "/billing/upgrade" && method === "GET") {
+        const t = url.searchParams.get("t");
+        return html(upgradePage(env, t, await upgradePreview(env, t)));
+      }
+      if (path === "/billing/upgrade" && method === "POST") {
+        const form = await request.formData();
+        await upgradeConfirm(env, String(form.get("t") ?? ""));
+        return html(
+          messagePage(env, "Upgraded", `Paddle has the change, and the receipt is on its way. The media server picks up the new plan within a day, or straight away with Settings → License → Check now.`),
+        );
+      }
+    } catch (e) {
+      if (e instanceof HttpError) return html(messagePage(env, "That didn't work", e.message, false), e.status);
+      throw e;
+    }
+  }
+
   if (method === "POST" && path.startsWith("/v1/")) {
     const b = await body(request);
     const file = (text) => json({ license: text });
@@ -54,6 +89,8 @@ async function route(request, env) {
       }
       case "/v1/trial":
         return file(await startTrial(env, cleanMachine(b.machine), typeof b.email === "string" ? b.email : "", b.engine));
+      case "/v1/billing":
+        return json(await requestBillingLink(env, b, url.origin));
       case "/v1/offline": {
         const r = readRequestCode(b.code);
         if (r.key === "TRIAL") return file(await startTrial(env, r.machine, typeof b.email === "string" ? b.email : "", r.engine));

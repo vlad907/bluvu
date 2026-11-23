@@ -523,7 +523,8 @@ export interface LicenseInfo {
   used: { screens: number; canvases: number; audioOutputs: number; captureSources: number };
   locks: { setup: boolean; updates: boolean; addScreens: boolean };
   wouldBlock: { count: number; last: { what: string; why: string; time: string; refused: boolean } | null };
-  links: { buy: string; account: string; renew: string; activate: string };
+  renews: boolean; // a paid subscription that renews by itself
+  links: { buy: string; account: string; renew: string; activate: string; billing: string };
   machine: { machineGuid: string; smbiosUuid: string; systemDisk: string }; // hashes
   online: boolean; // online activation available (the license server)
   server: string;

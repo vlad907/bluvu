@@ -388,6 +388,7 @@ json Manager::statusJson(const Usage& usage) {
         {"customer", p.value("customer", "")},
         {"licenseId", p.value("licenseId", "")},
         {"trial", p.value("trial", false)},
+        {"renews", p.value("renews", false)},  // a paid subscription renewing by itself
         {"maxScreens", s.maxScreens},
         {"features", s.features},
         {"issuedAt", p.value("issuedAt", "")},
@@ -400,7 +401,8 @@ json Manager::statusJson(const Usage& usage) {
                    {"addScreens", s.locked() || (s.maxScreens >= 0 && usage.screens >= s.maxScreens)}}},
         {"machine", here_.toJson()},
         {"links", {{"buy", std::string(kSite) + "/products.html#license"}, {"account", std::string(kSite) + "/account"},
-                   {"renew", std::string(kSite) + "/account?renew=" + p.value("licenseId", "")}, {"activate", std::string(kSite) + "/activate"}}},
+                   {"renew", std::string(kSite) + "/account?renew=" + p.value("licenseId", "")}, {"activate", std::string(kSite) + "/activate"},
+                   {"billing", server_ + "/billing"}}},
         {"online", true},
         {"server", server_},
 #ifdef MOSAIC_LICENSE_TEST_KEY

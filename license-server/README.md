@@ -19,6 +19,9 @@ engine accept.
 | `POST /v1/trial {machine, email?}` | A 14-day trial with Venue's features, once per machine (2 of 3 identifiers). |
 | `POST /v1/offline {code, email?}` | The file for an offline request code. A code made with the key `TRIAL` starts a trial. |
 | `GET /activate` | The offline activation page (paste the request code, download the file). |
+| `POST /webhooks/paddle` | Paddle's notifications (signed). Subscriptions make, renew and change licenses; see [payments](#payments). |
+| `GET /buy`, `GET /purchase?txn=`, `GET /v1/purchase?txn=` | Sandbox checkout (Paddle.js), then the key once the webhook has made the license. |
+| `GET /billing`, `POST /v1/billing {key, action: portal\|upgrade, plan?}` | Emails the billing contact a link to Paddle's portal or to confirm an upgrade (`/billing/portal`, `/billing/upgrade`). |
 | `/admin`, `/admin/api/...` | The admin view: list and search, edit plan / screens / expiry / grace, revoke and restore, release the media server, reset moves, make a file for a request code, issue by hand. History of every change. |
 
 `machine` is the engine's hashed identifiers: `{machineGuid, smbiosUuid, systemDisk}`. Replies are JSON;
@@ -65,4 +68,37 @@ Nothing here costs money on Cloudflare's free tier except a domain. Steps, in or
 6. **The inside bar.** Issue a `comp` license in the admin view, and activate it on MEDIA-SERVER (online, or
    with a request code and **Make license file**). Only then can enforcement be switched on (phase 6).
 
-Payments (Paddle webhooks that create and renew licenses) arrive in phase 4.
+7. **Payments (Paddle sandbox first).** Create a Paddle **sandbox** account (free, no real money), then:
+   - Catalog: a product "Bluvu" with yearly prices for Starter and Venue. Put their ids in
+     `PADDLE_PRICES` (`{"starter": "pri_...", "venue": "pri_..."}`).
+   - Developer tools:
+     - A client-side token → `PADDLE_CLIENT_TOKEN`.
+     - An API key → `npx wrangler secret put PADDLE_API_KEY`.
+     - A notification destination for `https://license.<domain>/webhooks/paddle` with the events
+       `subscription.*`, `transaction.completed`, `customer.created` and `customer.updated`. Its
+       secret → `npx wrangler secret put PADDLE_WEBHOOK_SECRET`.
+   - `npx wrangler secret put LINK_SECRET` with 32+ random characters (`openssl rand -hex 32`).
+   - Set the default payment link to `https://license.<domain>/buy`, then buy with one of
+     Paddle's documented sandbox test cards.
+     The key should show on `/purchase` within seconds.
+   - Going live is a separate decision (a live Paddle account, `PADDLE_ENV=production`,
+     `PADDLE_API_URL=https://api.paddle.com`, live keys): ask first.
+8. **Emails.** Onboard the domain in Cloudflare Email Service, uncomment the `send_email` binding in
+   `wrangler.toml` and set `EMAIL_FROM`. Until then emails are only recorded (the admin view shows them).
+
+## Payments
+
+Paddle is the seller (merchant of record): it charges, handles tax, sends receipts and retries failed
+cards. This server only turns its notifications into licenses:
+
+| Paddle says | The license |
+|---|---|
+| a new subscription (or its first transaction) | made, plan from the price, ends with the billing period; key emailed and shown on `/purchase` |
+| a renewal (new billing period) | end date moves to the new period's end; the media server gets it on its daily refresh |
+| plan changed (Starter → Venue) | plan, screens and features change; same refresh |
+| payment failed (`past_due`) | nothing changes: valid to its end date, then 30 days' grace |
+| cancelled | kept to the end of what was paid, then grace, then expired (the walls keep playing) |
+| refund, chargeback | nothing automatic: revoke it in the admin view |
+
+Every event is applied once, and an older event never undoes a newer one. Locally, `npm test` runs the
+whole flow against a fake Paddle API with events signed the way Paddle signs them.

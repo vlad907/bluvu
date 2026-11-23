@@ -111,6 +111,7 @@ async function show(id) {
     <h2>\${esc(l.customer?.name || l.customer?.email)} <span class="pill \${l.state}">\${l.state}</span></h2>
     <div class="mono">\${esc(l.key)}</div>
     <div class="muted" style="margin-top:6px">\${esc(l.id)} · \${esc(l.customer?.email)} · created \${day(l.created)}</div>
+    \${l.subscriptionId ? \`<div class="muted">Paddle \${esc(l.subscriptionId)} · billing \${esc(l.billingStatus || "–")} · <a href="\${d.paddleDashboard}/subscriptions/\${encodeURIComponent(l.subscriptionId)}" target="_blank" rel="noreferrer">open in Paddle</a></div>\` : ""}
     <div class="grid2">
       <div><label>Plan</label><select id="e-plan">\${["starter","venue","enterprise","comp","trial"].map((p) => \`<option\${p === l.plan ? " selected" : ""}>\${p}</option>\`).join("")}</select></div>
       <div><label>Screens (-1 = unlimited)</label><input id="e-screens" value="\${l.maxScreens}"></div>
@@ -124,6 +125,7 @@ async function show(id) {
       \${l.status === "revoked" ? '<button id="e-restore">Restore</button>' : '<button class="danger" id="e-revoke">Revoke</button>'}
       <button id="e-release" \${l.machine ? "" : "disabled"}>Release media server</button>
       <button id="e-moves">Reset moves (\${d.movesThisYear} this year)</button>
+      <button id="e-sendkey">Email the key</button>
     </div>
     <label>License file for a request code (offline activation by hand)</label>
     <textarea id="e-code" placeholder="Request code from Settings → License"></textarea>
@@ -131,6 +133,8 @@ async function show(id) {
     <h2 style="margin-top:14px">Media servers</h2>
     \${d.machines.map((m) => \`<div class="mono">\${esc([m.machineGuid, m.smbiosUuid, m.systemDisk].map((h) => (h || "–").slice(0, 8)).join(" · "))}</div>
       <div class="muted" style="margin-bottom:6px">activated \${day(m.activated)} · seen \${day(m.lastSeen)}\${m.released ? " · released " + day(m.released) : " · active"}\${m.engine ? " · engine " + esc(m.engine) : ""}</div>\`).join("") || '<p class="muted">None yet.</p>'}
+    <h2 style="margin-top:14px">Emails</h2>
+    \${d.emails.map((m) => \`<div><span class="muted">\${m.at.replace("T", " ").slice(0, 16)}</span> \${esc(m.kind)} to \${esc(m.to)} \${m.sent ? "" : \`<span class="pill expired">not sent</span> <span class="muted">\${esc(m.error)}</span>\`}</div>\`).join("") || '<p class="muted">None.</p>'}
     <h2 style="margin-top:14px">History</h2>
     <div class="events">\${d.events.map((e) => \`<div><span class="muted">\${e.at.replace("T", " ").slice(0, 16)}</span> \${esc(e.kind)} <span class="muted">\${esc(e.actor)}</span></div>\`).join("")}</div>\`;
   const act = (fn) => async () => { try { await fn(); await show(id); await list(); } catch (e) { toast(e.message); } };
@@ -143,6 +147,7 @@ async function show(id) {
   if ($("e-restore")) $("e-restore").onclick = act(() => api("POST", "/licenses/" + id + "/restore"));
   $("e-release").onclick = act(async () => { if (confirm("Release the media server? The license can then be activated on another one without counting as a move.")) await api("POST", "/licenses/" + id + "/release"); });
   $("e-moves").onclick = act(() => api("POST", "/licenses/" + id + "/reset-moves"));
+  $("e-sendkey").onclick = act(async () => { const r = await api("POST", "/licenses/" + id + "/send-key"); toast(r.sent ? "Sent." : "Not sent: " + r.error); });
   $("e-file").onclick = act(async () => {
     const r = await api("POST", "/licenses/" + id + "/file", { code: $("e-code").value.trim() || undefined });
     const a = document.createElement("a");

@@ -7,7 +7,7 @@ Needs a test build (cmake -DMOSAIC_LICENSE_TEST_KEY=ON) and `npm ci` in license-
 
     python tools/license_server_check.py [--engine PATH] [--out DIR]
 """
-import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile, time, urllib.error, urllib.request
+import argparse, hashlib, hmac, json, os, shutil, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
 for stream in (sys.stdout, sys.stderr):
     try:
@@ -29,6 +29,8 @@ os.makedirs(args.out, exist_ok=True)
 ENGINE = f"http://127.0.0.1:{args.port}"
 SERVER = f"http://127.0.0.1:{args.server_port}"
 ADMIN = "check-admin-token-0123456789"
+WEBHOOK_SECRET = "check-webhook-secret"
+PRICES = {"starter": "pri_checkstarter", "venue": "pri_checkvenue"}
 SEED = hashlib.sha512(b"bluvu-license-test-key: published, never trust in a venue build").hexdigest()[:64]
 
 failures = []
@@ -92,7 +94,8 @@ if not os.path.exists(npm_bin):
 
 with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
     vars_file = os.path.join(tmp, "test.vars")
-    open(vars_file, "w").write(f"SIGNING_SEED={SEED}\nSIGNING_KID=test\nADMIN_TOKEN={ADMIN}\n")
+    open(vars_file, "w").write(f"SIGNING_SEED={SEED}\nSIGNING_KID=test\nADMIN_TOKEN={ADMIN}\nPADDLE_WEBHOOK_SECRET={WEBHOOK_SECRET}\n"
+                               f"PADDLE_PRICES={json.dumps(PRICES)}\nEMAIL_OUTBOX_ONLY=1\n")
     persist = os.path.join(tmp, "state")
     shell = os.name == "nt"
     subprocess.run([npm_bin, "d1", "migrations", "apply", "bluvu-license", "--local", "--persist-to", persist], cwd=server_dir, check=True,
@@ -165,6 +168,32 @@ with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         engine("DELETE", "/api/license")
         st, r = engine("POST", "/api/license/trial", {})
         check(st == 502 and "had its trial" in str(r), f"only once per PC ({st}: {r})")
+        stop(e)
+
+        print("bought online (a Paddle webhook, signed like Paddle signs it):", flush=True)
+        def webhook(n, kind, price, ends_days):
+            t = time.time()
+            iso = lambda x: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(x))
+            ev = {"event_id": f"evt_check{n:06d}", "event_type": kind, "occurred_at": iso(t + n), "data": {
+                "id": "sub_check0001", "status": "active", "customer_id": "ctm_check0001", "transaction_id": "txn_check000000001",
+                "items": [{"price": {"id": price}, "quantity": 1}], "current_billing_period": {"starts_at": iso(t), "ends_at": iso(t + ends_days * 86400)}}}
+            raw = json.dumps(ev)
+            ts = str(int(t))
+            sig = hmac.new(WEBHOOK_SECRET.encode(), f"{ts}:{raw}".encode(), hashlib.sha256).hexdigest()
+            req = urllib.request.Request(SERVER + "/webhooks/paddle", method="POST", data=raw.encode(), headers={"Content-Type": "application/json", "Paddle-Signature": f"ts={ts};h1={sig}"})
+            with urllib.request.urlopen(req, timeout=40) as r:
+                return r.status
+        check(webhook(1, "subscription.created", PRICES["starter"], 365) == 200, "the subscription webhook is accepted")
+        st, p = request(SERVER, "GET", "/v1/purchase?txn=txn_check000000001")
+        check(st == 200 and p.get("ready") and p["plan"] == "starter", f"the checkout's page gets the key ({st}: {p})")
+        e = start_engine("four", "pc4-guid,pc4-uuid,pc4-disk")
+        st, r = engine("POST", "/api/license/activate", {"key": p["key"]})
+        check(st == 200 and r["plan"] == "starter" and r["maxScreens"] == 8 and r.get("renews") is True and r["links"]["billing"].endswith("/billing"),
+              f"activates as Starter, renewing by itself ({r.get('plan')}, {r.get('maxScreens')}, renews {r.get('renews')})")
+        check(webhook(2, "subscription.updated", PRICES["venue"], 365) == 200, "the upgrade webhook is accepted")
+        st, r = engine("POST", "/api/license/refresh")
+        check(st == 200 and r["plan"] == "venue" and r["maxScreens"] == 32, f"the upgrade arrives on refresh ({r.get('plan')}, {r.get('maxScreens')})")
+        check(renders(), "and the outputs keep rendering")
         stop(e)
 
         print("the license server unreachable:", flush=True)

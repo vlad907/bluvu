@@ -24,6 +24,7 @@ import {
   unb64url,
 } from "./core.js";
 import { adminPage } from "./admin_page.js";
+import { keyEmail, sendEmail } from "./email.js";
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
@@ -89,6 +90,7 @@ async function licenseRow(env, lic) {
     trial: !!lic.trial,
     notes: lic.notes,
     subscriptionId: lic.subscription_id,
+    billingStatus: lic.billing_status ?? "",
     created: iso(lic.created_at),
     customer: customer && { id: customer.id, email: customer.email, name: customer.name },
     machine: m && { machineGuid: m.machine_guid, smbiosUuid: m.smbios_uuid, systemDisk: m.system_disk, activated: iso(m.activated_at), lastSeen: iso(m.last_seen), engine: m.engine },
@@ -160,6 +162,7 @@ export async function handleAdmin(request, env, path) {
     const action = one[2];
     if (!action && m === "GET") {
       const { results: machines } = await env.DB.prepare("SELECT * FROM machines WHERE license_id = ? ORDER BY id DESC").bind(lic.id).all();
+      const { results: emails } = await env.DB.prepare("SELECT * FROM emails WHERE license_id = ? ORDER BY id DESC LIMIT 50").bind(lic.id).all();
       const { results: events } = await env.DB.prepare("SELECT * FROM events WHERE license_id = ? ORDER BY at DESC LIMIT 100").bind(lic.id).all();
       return json({
         license: await licenseRow(env, lic),
@@ -174,6 +177,8 @@ export async function handleAdmin(request, env, path) {
           engine: r.engine,
         })),
         events: events.map((e) => ({ kind: e.kind, detail: e.detail, actor: e.actor, at: iso(e.at) })),
+        emails: emails.map((e) => ({ kind: e.kind, to: e.to_addr, subject: e.subject, text: e.body, at: iso(e.created_at), sent: !!e.sent_at, error: e.error })),
+        paddleDashboard: (env.PADDLE_ENV || "sandbox") === "production" ? "https://vendors.paddle.com" : "https://sandbox-vendors.paddle.com",
       });
     }
     if (!action && m === "PATCH") {
@@ -201,6 +206,10 @@ export async function handleAdmin(request, env, path) {
     }
     if (m === "POST" && action === "release") {
       return json({ released: await release(env, lic, null, actor) });
+    }
+    if (m === "POST" && action === "send-key") {
+      const customer = await env.DB.prepare("SELECT * FROM customers WHERE id = ?").bind(lic.customer_id).first();
+      return json(await sendEmail(env, keyEmail(env, lic, customer)));
     }
     if (m === "POST" && action === "reset-moves") {
       await logEvent(env, lic.id, "moves-reset", "", actor);
