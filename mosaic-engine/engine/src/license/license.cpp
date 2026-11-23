@@ -7,6 +7,7 @@
 #include <iostream>
 #include <regex>
 #include <set>
+#include <cstdlib>
 #include <sstream>
 
 #include "core/layout.hpp"
@@ -22,6 +23,7 @@ constexpr int64_t kClockSlack = 2 * kDay;
 // The website (the domain isn't chosen yet: docs/LICENSING_PLAN.md). Buy, renew, account, and the
 // offline activation page that turns a request code into a license file.
 constexpr const char* kSite = "https://bluvu.example";
+constexpr const char* kServer = "https://license.bluvu.example";
 
 int64_t nowSeconds() {
     return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -239,9 +241,121 @@ Manager::Manager(fs::path dataDir, bool enforce)
     json st = json::parse(readFile(stateFile_), nullptr, false);
     if (st.is_object()) lastSeen_ = st.value("lastSeen", int64_t{0});
     lastSaved_ = lastSeen_;
+    const char* server = std::getenv("MOSAIC_LICENSE_SERVER");  // its files still need our signature
+    server_ = server && *server ? server : kServer;
+    while (!server_.empty() && server_.back() == '/') server_.pop_back();
     auto s = status();
     std::cerr << "[license] " << s.state << (s.plan.empty() ? "" : " (" + s.plan + ")") << (s.reason.empty() ? "" : ": " + s.reason)
               << (enforce_ ? "" : "; report-only, nothing is refused") << "\n";
+    refresher_ = std::thread([this] { refreshLoop(); });
+}
+
+Manager::~Manager() {
+    {
+        std::lock_guard lock(stopMutex_);
+        stopping_ = true;
+    }
+    stopCv_.notify_all();
+    if (refresher_.joinable()) refresher_.join();
+}
+
+json Manager::call(const std::string& path, const json& body, int& status, std::string& error) {
+    json b = body;
+    b["machine"] = here_.toJson();
+#ifdef MOSAIC_VERSION
+    b["engine"] = MOSAIC_VERSION;
+#endif
+    std::string response, why;
+    status = 0;
+    if (!postJson(server_ + path, b.dump(), status, response, why)) {
+        error = "couldn't reach the license server (" + why + "). For a media server without internet, use Get request code";
+        return nullptr;
+    }
+    json r = json::parse(response, nullptr, false);
+    if (!r.is_object()) {
+        error = "the license server sent an answer this version doesn't understand (HTTP " + std::to_string(status) + ")";
+        return nullptr;
+    }
+    if (status != 200) error = r.value("error", "the license server said no (HTTP " + std::to_string(status) + ")");
+    return r;
+}
+
+std::string Manager::activateOnline(const std::string& key) {
+    std::lock_guard serial(refreshMutex_);
+    int status = 0;
+    std::string error;
+    json r = call("/v1/activate", {{"key", key}}, status, error);
+    if (!error.empty()) return error;
+    return install(r.value("license", ""));
+}
+
+std::string Manager::startTrial(const std::string& email) {
+    std::lock_guard serial(refreshMutex_);
+    int status = 0;
+    std::string error;
+    json r = call("/v1/trial", {{"email", email}}, status, error);
+    if (!error.empty()) return error;
+    return install(r.value("license", ""));
+}
+
+std::string Manager::refreshNow() {
+    std::lock_guard serial(refreshMutex_);
+    Status s = status();
+    std::string licenseId = s.payload.is_object() ? s.payload.value("licenseId", "") : "";
+    auto record = [&](bool ok, const std::string& message) {
+        std::lock_guard lock(mutex_);
+        lastRefresh_ = {{"time", formatTime(nowSeconds())}, {"ok", ok}, {"message", message}};
+        if (!ok) std::cerr << "[license] refresh: " << message << "\n";
+        return ok ? "" : message;
+    };
+    if (licenseId.empty()) return record(false, "no license to refresh");
+    int status = 0;
+    std::string error;
+    json r = call("/v1/refresh", {{"licenseId", licenseId}}, status, error);
+    if (status == 410 && r.is_object() && r.value("revoked", false)) {
+        // Revoked: this PC stops being licensed (the setup locks once enforced; the walls play on).
+        std::lock_guard lock(mutex_);
+        std::error_code ec;
+        auto revoked = file_;
+        revoked.replace_filename("license-revoked.json");
+        fs::rename(file_, revoked, ec);
+        std::cerr << "[license] the license server says this license was revoked\n";
+        lastRefresh_ = {{"time", formatTime(nowSeconds())}, {"ok", false}, {"message", "the license was revoked"}};
+        return "the license was revoked";
+    }
+    if (!error.empty()) return record(false, error);
+    if (auto why = install(r.value("license", "")); !why.empty()) return record(false, why);
+    return record(true, "up to date");
+}
+
+void Manager::deactivate() {
+    Status s = status();
+    std::string licenseId = s.payload.is_object() ? s.payload.value("licenseId", "") : "";
+    if (!licenseId.empty()) {
+        std::lock_guard serial(refreshMutex_);
+        int status = 0;
+        std::string error;
+        call("/v1/deactivate", {{"licenseId", licenseId}}, status, error);  // best effort: offline is fine
+    }
+    remove();
+}
+
+void Manager::refreshLoop() {
+    // A minute after start, then daily; every 6 hours while the server can't be reached.
+    auto wait = std::chrono::minutes(1);
+    for (;;) {
+        {
+            std::unique_lock lock(stopMutex_);
+            if (stopCv_.wait_for(lock, wait, [this] { return stopping_; })) return;
+        }
+        Status s = status();
+        if (!s.payload.is_object()) {
+            wait = std::chrono::hours(6);
+            continue;
+        }
+        bool ok = refreshNow().empty();
+        wait = ok ? std::chrono::hours(24) : std::chrono::hours(6);
+    }
 }
 
 void Manager::touchClock(int64_t now) {
@@ -287,7 +401,8 @@ json Manager::statusJson(const Usage& usage) {
         {"machine", here_.toJson()},
         {"links", {{"buy", std::string(kSite) + "/products.html#license"}, {"account", std::string(kSite) + "/account"},
                    {"renew", std::string(kSite) + "/account?renew=" + p.value("licenseId", "")}, {"activate", std::string(kSite) + "/activate"}}},
-        {"online", false},  // online activation arrives with the license server (phase 3)
+        {"online", true},
+        {"server", server_},
 #ifdef MOSAIC_LICENSE_TEST_KEY
         {"testBuild", true},
 #else
@@ -296,6 +411,7 @@ json Manager::statusJson(const Usage& usage) {
     };
     std::lock_guard lock(mutex_);
     j["wouldBlock"] = {{"count", wouldBlock_}, {"last", lastBlocked_}};
+    j["lastRefresh"] = lastRefresh_;
     return j;
 }
 

@@ -182,7 +182,8 @@ Windows CI green, shown working in test mode before the next one starts.
    playing and a restart reloads the layout in every failure case.
 2. **Editor** (**built**): Settings → License (key, online and offline activation, plan and usage, renew link),
    banners, limit messages.
-3. **License server** (test deployment) with the admin view; issue the inside bar's comp license.
+3. **License server** (**built, runs locally**; deploying needs your Cloudflare account) with the admin
+   view; issue the inside bar's comp license once deployed.
 4. **Payments** in sandbox: checkout, webhooks, renewals, upgrade, failed payment, portal.
 5. **Release bundles and update channel** (§1 B–D), moving MEDIA-SERVER and rcv01 over, with CI green
    before anything reaches them; then make the repos private (§1 E).
@@ -238,3 +239,28 @@ All answered: see **Decisions** at the top. Still open: the domain name.
   ("Starter allows 8 screens; this would be 9.") with a **License settings** button.
 - Online activation (a button shown when `GET /api/license` → `online` is true) arrives with the license
   server in phase 3.
+
+## Phase 3 as built
+
+- `license-server/`: a Cloudflare Worker (plain JavaScript, no build step) with D1. API, admin view,
+  offline activation page; see its README for the routes and the deployment steps that need you
+  (account, database, the signing-key ceremony, Cloudflare Access for the admin view, deploy).
+- Signing: Ed25519 from a 32-byte seed in the `SIGNING_SEED` secret (WebCrypto); the file format is the
+  engine's. Locally it signs with the published test key.
+- Moves: activating on another PC moves the license, 3 times in a rolling year (support can reset);
+  **Remove from this server** releases it first so that doesn't count. Same-PC detection is the
+  engine's 2-of-3 rule, and the stored identifiers follow a changed part.
+- Trials: once per machine (2 of 3 identifiers against every earlier trial); offline through a request
+  code made with the key `TRIAL`.
+- Engine: `POST /api/license/activate {key}`, `/trial {email}`, `/refresh`; `DELETE /api/license` tells the
+  server. A daily refresh (a minute after start, then every 24 h, every 6 h while unreachable) picks up
+  renewals and changes; a revoked license is moved aside (`license-revoked.json`), which locks the setup
+  once enforcement is on and never stops the walls. HTTPS through WinHTTP on Windows; development Macs
+  reach a local server over plain HTTP. `MOSAIC_LICENSE_SERVER` points an engine elsewhere (its files
+  still need our signature).
+- Editor: **Activate online**, **Start a 14-day trial**, **Trial offline**, and when the last check with
+  the server was, with **Check now**.
+- Tests: `license-server/test/api.test.mjs` (14 API tests, signatures checked with Node's own Ed25519)
+  and `mosaic-engine/tools/license_server_check.py` (an engine against the server). CI runs both.
+- Not done here: rate limiting on `/v1/*` (Cloudflare's rate-limiting rules at deploy time), emails
+  (phase 4 with payments).

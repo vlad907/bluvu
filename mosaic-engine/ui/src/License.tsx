@@ -20,7 +20,7 @@ export function licenseSummary(l: LicenseInfo): { text: string; level: "ok" | "w
     case "valid":
       return { text: l.expires ? `Valid until ${day(l.expires)}` : "Doesn't expire", level: "ok" };
     case "trial":
-      return { text: `Trial · ${plural(l.daysLeft, "day")} left`, level: l.daysLeft <= 3 ? "warn" : "ok" };
+      return { text: `${plural(l.daysLeft, "day")} left`, level: l.daysLeft <= 3 ? "warn" : "ok" };
     case "expiring":
       return { text: `Runs out in ${plural(l.daysLeft, "day")} (${day(l.expires)})`, level: "warn" };
     case "grace":
@@ -73,6 +73,7 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
   const [key, setKey] = useState("");
   const [code, setCode] = useState("");
   const [paste, setPaste] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const install = (text: string) =>
@@ -81,10 +82,34 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
       .then((l) => (toast(`License installed: ${planName(l.plan)} · ${licenseSummary(l).text}`), setPaste(null), setCode(""), changed()))
       .catch(onError);
 
-  const makeCode = () => {
-    const k = key.trim();
+  const makeCode = (forTrial = false) => {
+    const k = forTrial ? "TRIAL" : key.trim();
     if (!k) return toast("Enter the license key first (it's in the email you got after buying)", "error");
     api.licenseRequestCode(k).then(setCode).catch(onError);
+  };
+
+  // Online calls go through the media server; they can take a few seconds.
+  const online = (what: Promise<LicenseInfo>, done: (l: LicenseInfo) => string) => {
+    setBusy(true);
+    what
+      .then((l) => (toast(done(l)), setKey(""), setCode(""), changed()))
+      .catch(onError)
+      .finally(() => setBusy(false));
+  };
+  const activateOnline = () => {
+    const k = key.trim();
+    if (!k) return toast("Enter the license key first (it's in the email you got after buying)", "error");
+    online(api.activateLicense(k), (l) => `Activated: ${planName(l.plan)} · ${licenseSummary(l).text}`);
+  };
+  const trial = async () => {
+    const email = await dialog.prompt("Start a 14-day trial", {
+      message: "All of Venue's features for 14 days, once per media server. We'll email you before it ends (optional).",
+      placeholder: "you@venue.com",
+      allowEmpty: true,
+      okLabel: "Start trial",
+    });
+    if (email === null) return;
+    online(api.startTrial(email), (l) => `Trial started: ${plural(l.daysLeft, "day")} left`);
   };
 
   const copy = (text: string) =>
@@ -95,7 +120,7 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
 
   const remove = async () => {
     const ok = await dialog.confirm("Remove the license from this media server?", {
-      message: "Do this when moving the license to another PC. The walls keep playing, but changing the setup needs a license again.",
+      message: "Do this when moving the license to another PC: the license server is told (when it can be reached), so it doesn't count as a move. The walls keep playing, but changing the setup needs a license again.",
       okLabel: "Remove",
       danger: true,
     });
@@ -182,14 +207,24 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
       <input className="license-key" placeholder="License key, BLUVU-XXXXX-…" value={key} onChange={(e) => setKey(e.target.value)} spellCheck={false} />
       <div className="row-buttons">
         {info.online && (
-          <button className="primary" disabled title="Online activation arrives with the license server">
-            Activate online
+          <button className="primary" disabled={busy} onClick={activateOnline} title="The media server asks the license server (it needs internet)">
+            {busy ? "Working…" : "Activate online"}
           </button>
         )}
-        <button onClick={makeCode} title="For a media server without internet: make a code to paste on the website from any device">
+        <button onClick={() => makeCode()} title="For a media server without internet: make a code to paste on the website from any device">
           Get request code
         </button>
       </div>
+      {!verified && info.online && (
+        <div className="row-buttons">
+          <button disabled={busy} onClick={trial} title="All of Venue's features for 14 days, once per media server">
+            Start a 14-day trial
+          </button>
+          <button className="ghost" onClick={() => makeCode(true)} title="A trial for a media server without internet: paste the code on the website">
+            Trial offline
+          </button>
+        </div>
+      )}
       {code && (
         <div className="license-code">
           <small className="muted">
@@ -234,6 +269,16 @@ export function LicenseSection({ onError }: { onError: (e: unknown) => void }) {
         {info.licenseId && ` · license ${info.licenseId}`}
         {info.testBuild && " · test build"}
       </small>
+      {verified && info.online && (
+        <small className="muted">
+          {info.lastRefresh
+            ? `Checked with the license server ${new Date(info.lastRefresh.time).toLocaleString()}: ${info.lastRefresh.ok ? "up to date" : info.lastRefresh.message}`
+            : "Checks with the license server once a day when it can (renewals arrive by themselves); without internet it keeps working until the license's end date."}{" "}
+          <button className="text-link" disabled={busy} onClick={() => online(api.refreshLicense(), () => "License up to date")}>
+            Check now
+          </button>
+        </small>
+      )}
       {verified && (
         <button className="ghost danger-text" onClick={remove} title="To move the license to another media server">
           Remove from this server

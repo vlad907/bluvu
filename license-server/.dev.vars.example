@@ -1,0 +1,5 @@
+# Local development only. The PUBLISHED TEST key (mosaic-engine/tools/license-test-key.txt):
+# only test builds of the engine accept what it signs. Production uses wrangler secrets.
+SIGNING_SEED=5d0c51ac278081a92fa815952cb97a07218eb421c070d45b1a0ea122df2e2a8a
+SIGNING_KID=test
+ADMIN_TOKEN=local-dev-admin-token

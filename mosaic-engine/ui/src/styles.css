@@ -355,3 +355,5 @@ a.button.ghost { background: transparent; border-color: transparent; color: var(
   border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 6px 8px; resize: vertical; word-break: break-all; }
 .license-machine { font-variant-numeric: tabular-nums; word-break: break-all; }
 .danger-text { color: var(--bad) !important; align-self: flex-start; }
+button.text-link { height: auto; padding: 0; border: 0; background: none; color: var(--accent); font-size: inherit; text-decoration: underline; }
+button.text-link:hover { background: none; }

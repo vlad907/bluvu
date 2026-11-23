@@ -1,0 +1,14 @@
+{
+  "name": "bluvu-license-server",
+  "private": true,
+  "type": "module",
+  "description": "Bluvu license server: issues signed licenses, activation, moves, trials, admin. Cloudflare Workers + D1.",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787",
+    "db:local": "wrangler d1 migrations apply bluvu-license --local",
+    "test": "node --test test/api.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.2"
+  }
+}

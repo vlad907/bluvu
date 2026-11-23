@@ -727,7 +727,26 @@ struct HttpApi::Impl {
         }));
         s.Delete("/api/license", guard([this](const httplib::Request&, httplib::Response& res) {
             if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
-            license->remove();
+            license->deactivate();  // tells the license server, when it can, so a move doesn't count
+            sendJson(res, license->statusJson(usage()));
+        }));
+        // Online: POST /activate {key}, /trial {email}, /refresh. 502 when the license server can't
+        // be reached or says no (its reason in "error").
+        s.Post("/api/license/activate", guard([this](const httplib::Request& req, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            std::string key = parseBody(req).value("key", "");
+            if (key.empty()) return sendError(res, 400, "key is required");
+            if (auto why = license->activateOnline(key); !why.empty()) return sendError(res, 502, why);
+            sendJson(res, license->statusJson(usage()));
+        }));
+        s.Post("/api/license/trial", guard([this](const httplib::Request& req, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            if (auto why = license->startTrial(parseBody(req).value("email", "")); !why.empty()) return sendError(res, 502, why);
+            sendJson(res, license->statusJson(usage()));
+        }));
+        s.Post("/api/license/refresh", guard([this](const httplib::Request&, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            if (auto why = license->refreshNow(); !why.empty()) return sendError(res, 502, why);
             sendJson(res, license->statusJson(usage()));
         }));
         s.Post("/api/license/request-code", guard([this](const httplib::Request& req, httplib::Response& res) {

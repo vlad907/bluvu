@@ -1,0 +1,21 @@
+# Bluvu license server (docs/LICENSING_PLAN.md, phase 3).
+# Local:  npm ci && npm run db:local && npm run dev   (uses .dev.vars, never committed)
+# Deploy: needs the Cloudflare account, a D1 database id below, and the secrets (see README.md).
+name = "bluvu-license"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+SITE_URL = "https://bluvu.example"
+# Admin access in production comes from Cloudflare Access (the Cf-Access-Authenticated-User-Email
+# header); these addresses may use the admin view. Comma separated.
+ADMIN_EMAILS = ""
+MOVES_PER_YEAR = "3"
+TRIAL_DAYS = "14"
+GRACE_DAYS = "30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bluvu-license"
+database_id = "00000000-0000-0000-0000-000000000000"  # set when the D1 database is created
+migrations_dir = "migrations"

@@ -8,10 +8,12 @@ on:
   push:
     paths:
       - "mosaic-engine/**"
+      - "license-server/**"
       - ".github/workflows/mosaic-engine-windows.yml"
   pull_request:
     paths:
       - "mosaic-engine/**"
+      - "license-server/**"
       - ".github/workflows/mosaic-engine-windows.yml"
   workflow_dispatch:
 
@@ -83,6 +85,17 @@ jobs:
           $code = $LASTEXITCODE
           $out
           if ($code) { $out | Select-String 'FAIL' | ForEach-Object { "::error title=license self-test::$($_.Line)" }; exit $code }
+
+      - name: License server API (wrangler dev, local database, test key)
+        if: ${{ !cancelled() }}
+        working-directory: license-server
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
+      - name: Engine against the license server (activate, refresh, revoke, trial, offline server)
+        if: ${{ !cancelled() }}
+        run: python tools/license_server_check.py --engine build/Release/mosaic_engine.exe --out ci-out
 
       - name: Audio self-test (delay, stalls, drift; simulated network)
         if: ${{ !cancelled() }}

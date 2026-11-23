@@ -9,10 +9,12 @@
 // `wouldBlock`) but nothing is refused unless the engine is started with --license-enforce.
 #pragma once
 
+#include <condition_variable>
 #include <cstdint>
 #include <filesystem>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "license/license_format.hpp"
@@ -82,10 +84,14 @@ std::string changeRefusal(const Status& s, const Usage& before, const Usage& aft
 // The trusted keys of this build.
 std::vector<TrustedKey> trustedKeys();
 
+// One JSON POST to the license server (license_client.cpp). False = it couldn't be reached.
+bool postJson(const std::string& url, const std::string& body, int& status, std::string& response, std::string& error);
+
 // The engine's license: loaded from data/license.json, re-checked every minute.
 class Manager {
 public:
     Manager(std::filesystem::path dataDir, bool enforce);
+    ~Manager();
 
     bool enforced() const { return enforce_; }
     Status status();                  // re-evaluated now
@@ -96,6 +102,15 @@ public:
     // The code to paste on the website for an offline activation: the key and this PC's fingerprint.
     std::string requestCode(const std::string& key);
 
+    // Online (the license server, MOSAIC_LICENSE_SERVER or https://license.bluvu.example): each
+    // returns "" or why not, in words. None of them is ever needed for the walls to play.
+    std::string activateOnline(const std::string& key);
+    std::string startTrial(const std::string& email);
+    // A fresh file for this PC (renewals, upgrades, revocation). Runs by itself once a day.
+    std::string refreshNow();
+    // Tells the server this PC no longer uses the license (best effort), then removes the file.
+    void deactivate();
+
     // The request-path check: "" = go ahead. In report-only mode it records what it would refuse
     // and returns "".
     std::string checkRequest(const std::string& method, const std::string& path, const std::string& body);
@@ -105,6 +120,9 @@ public:
 private:
     std::string refuse(const std::string& what, const std::string& why);  // records; "" in report-only
     void touchClock(int64_t now);
+    // POSTs to the server; on success returns the reply JSON (status in `status`), else sets error.
+    json call(const std::string& path, const json& body, int& status, std::string& error);
+    void refreshLoop();
 
     std::filesystem::path file_, stateFile_;
     bool enforce_;
@@ -114,6 +132,13 @@ private:
     int64_t lastSeen_ = 0, lastSaved_ = 0;
     int wouldBlock_ = 0;
     json lastBlocked_;
+    std::string server_;
+    json lastRefresh_;  // {time, ok, message}
+    std::mutex refreshMutex_;  // one refresh / activation at a time
+    std::mutex stopMutex_;
+    std::condition_variable stopCv_;
+    bool stopping_ = false;
+    std::thread refresher_;
 };
 
 int selfTest();  // license_selftest.cpp: mosaic_engine --license-self-test

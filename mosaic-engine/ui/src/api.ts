@@ -526,6 +526,8 @@ export interface LicenseInfo {
   links: { buy: string; account: string; renew: string; activate: string };
   machine: { machineGuid: string; smbiosUuid: string; systemDisk: string }; // hashes
   online: boolean; // online activation available (the license server)
+  server: string;
+  lastRefresh: { time: string; ok: boolean; message: string } | null; // the daily check with the license server
 }
 
 async function call<T>(method: string, path: string, body?: unknown, raw?: Blob): Promise<T> {
@@ -560,6 +562,9 @@ export const api = {
   license: () => call<LicenseInfo>("GET", "/api/license"),
   installLicense: (fileText: string) => call<LicenseInfo>("PUT", "/api/license", undefined, new Blob([fileText], { type: "application/json" })),
   removeLicense: () => call<LicenseInfo>("DELETE", "/api/license"),
+  activateLicense: (key: string) => call<LicenseInfo>("POST", "/api/license/activate", { key }),
+  startTrial: (email: string) => call<LicenseInfo>("POST", "/api/license/trial", { email }),
+  refreshLicense: () => call<LicenseInfo>("POST", "/api/license/refresh", {}),
   licenseRequestCode: (key: string) => call<{ code: string }>("POST", "/api/license/request-code", { key }).then((r) => r.code),
   history: (layoutId: string) => call<{ history: LayoutVersion[] }>("GET", `/api/layouts/${layoutId}/history`).then((r) => r.history),
   restore: (layoutId: string, version: string) => call("POST", `/api/layouts/${layoutId}/history/${version}/restore`, {}),
