@@ -60,6 +60,26 @@ the wall; a tidy reshoot would help there too.
 | 9 | `gallery-4.jpg` | Photo (wide tile, 2:1) | P2 | Close-up of a bezel line where one picture crosses two screens cleanly. |
 | 10 | `gallery-5.jpg` | Photo (wide tile) | P3 | The hardware: media server, receiving PCs, rack. Tidy cables. |
 
+## Products page (`products.html`)
+
+Product photos, 4:3, on a plain dark background or in place behind a screen:
+
+| File | Pri | What |
+|---|---|---|
+| `server-compact.jpg` | P2 | The mini PC media server |
+| `server-venue.jpg` | P2 | The desktop media server |
+| `server-flagship.jpg` | P3 | The rack server |
+| `receiver-one.jpg` | P2 | Small receiver, ideally on a VESA mount behind a TV |
+| `receiver-quad.jpg` | P2 | Four-output receiver, cables to a 2×2 |
+| `receiver-pro.jpg` | P3 | 4K receiver |
+
+**Prices and hardware are examples to confirm.** Everything on the page is a first pass: hardware
+$399–$8,999, license Starter $599/yr (8 screens), Venue $1,499/yr (32 screens), Enterprise by quote, the
+inside-bar kit at $8,999, 2-year hardware warranty, and "walls keep running if a license lapses". The
+screen counts per server are planning figures from the engine's measurements (4 × 4K and 24 × 1080p at
+60 fps on the GPU, without NDI encoding) plus NDI bandwidth. Measure on the real hardware before quoting them.
+The license tiers aren't enforced by the software yet.
+
 ## Editor shots that need the media server (Windows)
 
 These features only run on Windows, so they couldn't be captured on the Mac. Take them on MEDIA-SERVER
