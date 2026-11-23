@@ -1318,7 +1318,7 @@ struct HttpApi::Impl {
             for (auto& l : running)
                 for (auto& e : l->endpoints)
                     if (hostKey(e.host) == hostKey(host))
-                        return sendJson(res, {{"endpoint", {{"id", e.id}, {"name", e.name}, {"player", e.player}, {"flashTest", e.flashTest}, {"bufferMs", l->receiverBufferMs}, {"identify", identifyLeft(e.host) > 0}}},
+                        return sendJson(res, {{"endpoint", {{"id", e.id}, {"name", e.name}, {"player", e.player}, {"flashTest", e.flashTest}, {"plainScaling", e.plainScaling}, {"bufferMs", l->receiverBufferMs}, {"identify", identifyLeft(e.host) > 0}}},
                                               {"layout", l->id},
                                               {"engineHost", machine},
                                               {"receiverPackage", receiverPackage()},

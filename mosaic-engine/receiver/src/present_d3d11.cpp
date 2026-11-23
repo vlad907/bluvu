@@ -138,8 +138,9 @@ public:
         if (FAILED(D3DCompile(kShader, std::strlen(kShader), "receiver", nullptr, nullptr, "ps_unpack", "ps_5_0", 0, 0, &uyb, &err)))
             return error = "UYVY shader compile failed", false;
         device_->CreatePixelShader(uyb->GetBufferPointer(), uyb->GetBufferSize(), nullptr, &psUnpack_);
-        // Set to go back to plain bilinear enlarging (if the bicubic filter is too much for the GPU).
-        plainScaling_ = std::getenv("MOSAIC_PLAIN_SCALING") != nullptr;
+        // Set on a PC to force plain bilinear enlarging there, whatever the editor says.
+        plainForced_ = std::getenv("MOSAIC_PLAIN_SCALING") != nullptr;
+        plainScaling_ = plainScaling_ || plainForced_;
         D3D11_BUFFER_DESC cb = {};
         cb.ByteWidth = 16;
         cb.Usage = D3D11_USAGE_DYNAMIC;
@@ -402,6 +403,7 @@ public:
 
     double refreshHz() const override { return hz_; }
     void setProbe(bool on) override { probe_ = on; }
+    void setPlainScaling(bool on) override { plainScaling_ = on || plainForced_; }
     std::vector<uint32_t> probe() override { return probes_; }
 
 private:
@@ -501,7 +503,8 @@ private:
     ComPtr<IDXGIOutput> output_;  // the first window's monitor (paces the loop)
     ComPtr<ID3D11VertexShader> vs_;
     ComPtr<ID3D11PixelShader> ps_, psUnpack_;
-    bool plainScaling_ = false;
+    bool plainScaling_ = false;  // from the editor (the endpoint's "Sharpen enlarged pictures" off) or forced below
+    bool plainForced_ = false;
     ComPtr<ID3D11Buffer> picture_;
     ComPtr<ID3D11SamplerState> sampler_;
     ComPtr<ID3D11RasterizerState> raster_;

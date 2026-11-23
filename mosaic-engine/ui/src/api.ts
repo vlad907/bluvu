@@ -184,6 +184,7 @@ export interface Output {
   display?: string; // a monitor on the canvas's GPU ("\\\\.\\DISPLAY3"): sent there full screen instead of as NDI
   displayMode?: DisplayMode | null; // display outputs: the mode the monitor is put in (absent = as Windows has it)
   delayMs?: number; // display outputs: picture held back this long (0..1000), to line up with NDI walls
+  smooth?: boolean; // enlarge its part of the canvas with plain bilinear filtering (absent = sharpened, bicubic)
   enabled: boolean;
 }
 
@@ -232,6 +233,7 @@ export interface Endpoint {
   name: string;
   host: string; // the PC's name
   player?: "studio_monitor" | "mosaic"; // what shows the streams on that PC
+  plainScaling?: boolean; // Mosaic Receiver: enlarge with plain bilinear filtering (absent = sharpened, bicubic)
   flashTest?: boolean; // Mosaic Receiver: flash all displays white together (film it to see the offset)
   displays: EndpointDisplay[];
 }

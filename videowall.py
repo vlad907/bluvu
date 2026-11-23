@@ -1148,7 +1148,7 @@ def sync_receiver(displays=None):
     endpoint = endpoint_state["endpoint"] or {}
     identify = bool(endpoint.get("identify"))
     wanted = {"displays": identify_displays() if identify else cfg("receiver_displays") or [],
-              "flashTest": bool(endpoint.get("flashTest")) and not identify, "bufferMs": int(endpoint.get("bufferMs") or 0)}
+              "flashTest": bool(endpoint.get("flashTest")) and not identify, "plainScaling": bool(endpoint.get("plainScaling")), "bufferMs": int(endpoint.get("bufferMs") or 0)}
     if receiver_state["sent"] != wanted:
         if receiver_call("PUT", "/config", wanted, timeout=3) is not None:
             receiver_state["sent"] = wanted

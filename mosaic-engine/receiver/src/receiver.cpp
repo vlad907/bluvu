@@ -46,6 +46,7 @@ void from_json(const json& j, ReceiverConfig& c) {
     c.lagFrames = std::clamp(j.value("lagFrames", c.lagFrames), 0, 30);
     c.lostAfterMs = std::clamp(j.value("lostAfterMs", c.lostAfterMs), 50, 10000);
     c.flashTest = j.value("flashTest", c.flashTest);
+    c.plainScaling = j.value("plainScaling", c.plainScaling);
     c.probe = j.value("probe", c.probe);
     c.compensate = j.value("compensate", c.compensate);
     c.bufferMs = std::clamp(j.value("bufferMs", c.bufferMs), 0, 1000);
@@ -82,7 +83,7 @@ json to_json(const ReceiverConfig& c) {
                             {"crop", {{"x", d.cropX}, {"y", d.cropY}, {"w", d.cropW}, {"h", d.cropH}}},
                             {"synthetic", d.synthetic},
                             {"identify", d.identify}});
-    return {{"displays", displays}, {"lagFrames", c.lagFrames}, {"lostAfterMs", c.lostAfterMs}, {"flashTest", c.flashTest}, {"compensate", c.compensate}, {"bufferMs", c.bufferMs}};
+    return {{"displays", displays}, {"lagFrames", c.lagFrames}, {"lostAfterMs", c.lostAfterMs}, {"flashTest", c.flashTest}, {"plainScaling", c.plainScaling}, {"compensate", c.compensate}, {"bufferMs", c.bufferMs}};
 }
 
 static std::unique_ptr<FrameInput> makeInput(const DisplayConfig& d, std::string& error) {
@@ -250,6 +251,7 @@ void Receiver::apply(const ReceiverConfig& c) {
         for (auto& tr : windows_) tr.lastFrameId = tr.frameId = 0;
     }
     presenter_->setProbe(c.probe);
+    presenter_->setPlainScaling(c.plainScaling);
     windowStream_.assign(windows.size(), -1);
     drawn_.assign(windows.size(), UINT64_MAX);  // every window is drawn once
     tileGen_.clear();
@@ -536,6 +538,7 @@ void Receiver::frame() {
                {"screenSpreadNowMs", avgOf(recentSpreads_)},
                {"compensate", active_.compensate},
                {"flashTest", active_.flashTest},
+               {"plainScaling", active_.plainScaling},
                {"uploadMs", uploadMs_},
                {"uptimeS", std::chrono::duration<double>(now - started_).count()},
                {"presents", presents_},

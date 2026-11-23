@@ -72,6 +72,8 @@ public:
     // For tests: with the probe on, probe() gives the colour (0xRRGGBB) at the centre of each
     // window as last drawn, read back from what was presented.
     virtual void setProbe(bool) {}
+    // Enlarge pictures with plain bilinear filtering instead of bicubic.
+    virtual void setPlainScaling(bool) {}
     virtual std::vector<uint32_t> probe() { return {}; }
 };
 

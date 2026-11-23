@@ -118,7 +118,7 @@ clockwise, of the crop about its centre: for panels hung at an angle), `scaleMod
 `source` (`"canvas"` or a source id), `enabled`, and `group` (the id of the wall group that made it, if any).
 A picture shown larger than it is (a small part of the canvas on a big screen), or tilted by a free angle, is
 filtered bicubically, which keeps its edges crisp; at its own size or smaller nothing changes. `smooth: true`
-puts one output back on plain bilinear filtering.
+puts one output back on plain bilinear filtering (in the editor: untick **Sharpen when enlarged** on the output).
 A display output also has `display` (the monitor, `\\.\DISPLAY2`; empty = send as NDI), `displayMode`
 (`{"width", "height", "refreshHz"}`, absent = leave the monitor as Windows has it) and `delayMs` (0–1000).
 `color` holds its colour correction.

@@ -224,6 +224,14 @@ export function Inspector({
           <button onClick={matchOutput}>1:1 pixels</button>
           <button onClick={fitCanvas}>Whole canvas</button>
         </div>
+        <label
+          className="toggle"
+          style={{ gridColumn: "1 / -1" }}
+          title="When the output is larger than its part of the canvas, the picture is enlarged with a bicubic filter: edges stay crisp instead of going soft. Off = plain (bilinear) filtering. Makes no difference at 1:1 or when shrinking."
+        >
+          <input type="checkbox" checked={!output.smooth} onChange={(e) => onPatch({ smooth: !e.target.checked })} />
+          Sharpen when enlarged
+        </label>
       </div>
 
       <div className="group">

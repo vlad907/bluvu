@@ -40,6 +40,7 @@ struct ReceiverConfig {
     int lagFrames = 6;       // a stream this far behind the others stops holding them back (100 ms at 60 fps)
     int lostAfterMs = 500;   // no frame for this long = signal lost (stops being waited for)
     bool flashTest = false;  // every display flashes white on engine frames divisible by 30
+    bool plainScaling = false;  // enlarge pictures with plain bilinear filtering instead of bicubic (lighter on the GPU, softer)
     bool probe = false;      // tests: status reports the colour drawn at each window's centre
     // Windows shows some displays a refresh later than others (it composites them: HDR on, an
     // overlay, a different setting). Measured, and the other displays are held back to match.

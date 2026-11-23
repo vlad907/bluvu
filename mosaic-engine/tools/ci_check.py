@@ -568,6 +568,12 @@ with tempfile.TemporaryDirectory() as tmp:
         e = next(x for x in json.loads(get("/api/endpoints")[1])["endpoints"] if x["id"] == "wall-pc")
         check(e["online"] and not e["displays"][0]["ok"], "status shows it online, display 1 playing the wrong stream")
         call("PUT", "/api/endpoints/wall-pc", {"player": "mosaic"})
+        plain = lambda: call("POST", "/api/endpoints/checkin", {"host": "wall-pc", "screens": [], "panels": []})["endpoint"].get("plainScaling")
+        check(plain() is False, "a receiver sharpens enlarged pictures unless told otherwise")
+        call("PUT", "/api/endpoints/wall-pc", {"plainScaling": True})
+        check(plain() is True, "turning sharpening off for an endpoint reaches its PC at the next check-in")
+        call("PUT", "/api/endpoints/wall-pc", {"plainScaling": False})
+        check(plain() is False, "and turning it back on")
         r = call("POST", "/api/endpoints/checkin", {"host": "wall-pc", "panels": [], "receiver": {"spreadMax10s": 0, "alignedRatio": 1.0, "refreshHz": 60,
                                                     "displays": [{"index": 1, "shownFrameId": 1234, "late": 2}]}})
         check(r["endpoint"]["player"] == "mosaic", "the check-in tells the PC to use the Mosaic Receiver")

@@ -311,6 +311,7 @@ void from_json(const json& j, AudioOutputConfig& a) {
 
 void to_json(json& j, const Endpoint& e) {
     j = json{{"id", e.id}, {"name", e.name}, {"host", e.host}, {"player", e.player}, {"flashTest", e.flashTest}, {"displays", e.displays}};
+    if (e.plainScaling) j["plainScaling"] = true;
 }
 
 void from_json(const json& j, Endpoint& e) {
@@ -319,6 +320,7 @@ void from_json(const json& j, Endpoint& e) {
     e.host = j.value("host", e.host);
     e.player = j.value("player", e.player);
     e.flashTest = j.value("flashTest", e.flashTest);
+    e.plainScaling = j.value("plainScaling", e.plainScaling);
     if (j.contains("displays")) e.displays = j.at("displays").get<std::vector<EndpointDisplay>>();
 }
 

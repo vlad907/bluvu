@@ -201,6 +201,20 @@ export function EndpointPanel({
             <option value="mosaic">Mosaic Receiver (displays in step)</option>
           </select>
         </label>
+        {endpoint.player === "mosaic" && (
+          <label
+            className="toggle"
+            style={{ gridColumn: "1 / -1" }}
+            title="When a stream is smaller than the screen showing it, this PC enlarges it with a bicubic filter: edges stay crisp instead of going soft. Turn it off if the PC's GPU runs too hot or drops frames; the picture is then enlarged plainly (bilinear)."
+          >
+            <input
+              type="checkbox"
+              checked={!endpoint.plainScaling}
+              onChange={(e) => api.putEndpoint(endpoint.id, { plainScaling: !e.target.checked }).then(onChanged).catch(onError)}
+            />
+            Sharpen enlarged pictures
+          </label>
+        )}
         {endpoint.player === "mosaic" && endpoint.receiver && (
           <small className={`wide-note ${endpoint.receiver.error || endpoint.receiver.spreadMax10s > 1 ? "warn" : "muted"}`}>
             {endpoint.receiver.error

@@ -16,8 +16,8 @@ and each endpoint chooses its player, so a PC can switch back at any time.
    - **The endpoint panel** shows "Receiver up to date (version)", or what went wrong.
    - **Scaling.** A stream smaller than its screen (1080p on a 4K TV) is enlarged bicubically, so edges stay
      crisp; a stream at the screen's own size is shown pixel for pixel. If that is too much for a PC's graphics
-     card, set the environment variable `MOSAIC_PLAIN_SCALING=1` on that PC (`setx MOSAIC_PLAIN_SCALING 1`,
-     then restart the dashboard) for plain bilinear enlarging.
+     card, untick **Sharpen enlarged pictures** on its endpoint in the editor for plain bilinear enlarging (the
+     environment variable `MOSAIC_PLAIN_SCALING=1` on the PC forces the same, whatever the editor says).
    - **Firewall:** run `install.bat` once on each receiving PC after its first download, to add the receiver's
      firewall rule.
 2. **In the editor:** *Endpoints* → the PC → **Player: Mosaic Receiver**. A PC only switches once it has the
