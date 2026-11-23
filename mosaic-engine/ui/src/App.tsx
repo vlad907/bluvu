@@ -19,7 +19,7 @@ const SECTIONS: [Section, string, string][] = [
   ["presets", "Presets", "Group presets and scenes"],
   ["endpoints", "Endpoints", "Receiving PCs and their displays"],
   ["monitor", "Monitor", "Engine and output health"],
-  ["settings", "Settings", "Layout history and files, media, signal loss, access"],
+  ["settings", "Settings", "Canvas, layout files, media, audio, access, updates"],
 ];
 
 export function App() {
@@ -429,7 +429,7 @@ export function App() {
       presets: ["Presets", "Click ▶ to show a preset on its group, or open a group to save new ones. The strip under the canvas does the same in one click."],
       endpoints: ["Endpoints", "Click a receiving PC to choose which output goes on each of its screens."],
       monitor: ["Monitor", "Live numbers from the engine. Amber means an output is falling behind or dropping frames."],
-      settings: ["Settings", "Export or restore this layout, upload images, choose what shows when a stream drops, and set a PIN."],
+      settings: ["Settings", "Pick a page at the top of the left panel: canvas, layout files, media, audio, access or updates."],
     };
     const [title, text] = hints[section];
     right = (

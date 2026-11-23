@@ -281,6 +281,17 @@ small.warn { color: var(--warn); }
 .slot-head button { width: auto !important; height: 22px; padding: 0 6px; background: transparent; border-color: transparent; color: var(--muted); }
 
 /* settings, media, PIN prompt */
+/* The menu of pages inside Settings: stays at the top of the panel while a page scrolls. */
+.settings-tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: none;
+  position: sticky; top: -14px; z-index: 3; margin: -14px -12px 0; padding: 14px 12px 10px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.settings-tabs button { height: 28px; padding: 0 6px; font-size: 12px; background: var(--surface-2); border-color: var(--border); color: var(--muted); }
+.settings-tabs button:hover { color: var(--text); background: var(--surface-3); }
+.settings-tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.settings-page { display: flex; flex-direction: column; gap: 18px; }
+.settings-page[hidden] { display: none; }
 .row-buttons { display: flex; gap: 8px; }
 .row-buttons button { flex: 1; }
 .thumb { width: 44px; height: 28px; object-fit: cover; border-radius: 4px; background: #000; flex: none; border: 1px solid var(--border); }
