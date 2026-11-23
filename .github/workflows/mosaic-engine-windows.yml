@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22  # wrangler (license-server) needs 22
 
       - uses: actions/setup-python@v5
         with:
@@ -89,13 +89,27 @@ jobs:
       - name: License server API (wrangler dev, local database, test key)
         if: ${{ !cancelled() }}
         working-directory: license-server
+        shell: pwsh
         run: |
           npm ci --no-audit --no-fund
-          npm test
+          if ($LASTEXITCODE) { "::error title=license server::npm ci failed"; exit 1 }
+          $out = & npm test 2>&1
+          $code = $LASTEXITCODE
+          $out
+          if ($code) { $out | Select-String -Pattern 'not ok|Error|expected|actual|didn' | Select-Object -First 15 | ForEach-Object { "::error title=license server API::$($_.Line.Trim())" }; exit $code }
 
       - name: Engine against the license server (activate, refresh, revoke, trial, offline server)
         if: ${{ !cancelled() }}
-        run: python tools/license_server_check.py --engine build/Release/mosaic_engine.exe --out ci-out
+        shell: pwsh
+        run: |
+          $out = & python tools/license_server_check.py --engine build/Release/mosaic_engine.exe --out ci-out 2>&1
+          $code = $LASTEXITCODE
+          $out
+          if ($code) {
+            $out | Select-Object -Last 8 | ForEach-Object { "::error title=license_server_check::$_" }
+            if (Test-Path ci-out/license-server.log) { Get-Content ci-out/license-server.log -Tail 8 | ForEach-Object { "::error title=wrangler log::$_" } }
+            exit $code
+          }
 
       - name: Audio self-test (delay, stalls, drift; simulated network)
         if: ${{ !cancelled() }}
