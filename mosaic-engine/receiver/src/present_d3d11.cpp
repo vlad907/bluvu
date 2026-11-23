@@ -14,10 +14,12 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <map>
 #include <thread>
+#include <utility>
 
 namespace mosaic::rx {
 
@@ -37,14 +39,44 @@ V vs(uint id : SV_VertexID) {
     o.pos = float4(p * float2(2, -2) + float2(-1, 1), 0, 1);
     return o;
 }
-float4 ps(V i) : SV_Target { return float4(tex.Sample(smp, i.uv).rgb, 1); }
+cbuffer Picture : register(b0) { float2 size; float sharp; float pad; };  // picture size in pixels; 1 = enlarge bicubically
 
-// UYVY 4:2:2 packed as one RGBA8 texel per pixel pair (r = U, g = Y0, b = V, a = Y1), BT.709 limited range.
-cbuffer Picture : register(b0) { float2 size; float2 pad; };  // picture size in pixels
-float4 ps_uyvy(V i) : SV_Target {
-    float2 p = min(floor(i.uv * size), size - 1);
-    float4 t = tex.Load(int3(int(p.x) / 2, int(p.y), 0));
-    float y = ((int(p.x) & 1) ? t.a : t.g) * 255.0 - 16.0;
+// The picture stretched to the tile. Enlarged (a 1080p stream on a 4K screen), plain bilinear
+// filtering is soft, so it is filtered bicubically instead (Catmull-Rom: its 16 texels read as
+// 9 bilinear taps), which keeps edges crisp. The same filter as the engine's (shaders.hpp).
+float4 ps(V i) : SV_Target {
+    if (sharp < 0.5) return float4(tex.SampleLevel(smp, i.uv, 0).rgb, 1);
+    float2 pos = i.uv * size;
+    float2 c1 = floor(pos - 0.5) + 0.5;
+    float2 f = pos - c1;
+    float2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    float2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    float2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    float2 w3 = f * f * (-0.5 + 0.5 * f);
+    float2 w12 = w1 + w2;
+    float2 p0 = (c1 - 1.0) / size;
+    float2 p12 = (c1 + w2 / w12) / size;
+    float2 p3 = (c1 + 2.0) / size;
+    float3 c = tex.SampleLevel(smp, float2(p0.x, p0.y), 0).rgb * (w0.x * w0.y)
+             + tex.SampleLevel(smp, float2(p12.x, p0.y), 0).rgb * (w12.x * w0.y)
+             + tex.SampleLevel(smp, float2(p3.x, p0.y), 0).rgb * (w3.x * w0.y)
+             + tex.SampleLevel(smp, float2(p0.x, p12.y), 0).rgb * (w0.x * w12.y)
+             + tex.SampleLevel(smp, float2(p12.x, p12.y), 0).rgb * (w12.x * w12.y)
+             + tex.SampleLevel(smp, float2(p3.x, p12.y), 0).rgb * (w3.x * w12.y)
+             + tex.SampleLevel(smp, float2(p0.x, p3.y), 0).rgb * (w0.x * w3.y)
+             + tex.SampleLevel(smp, float2(p12.x, p3.y), 0).rgb * (w12.x * w3.y)
+             + tex.SampleLevel(smp, float2(p3.x, p3.y), 0).rgb * (w3.x * w3.y);
+    return float4(saturate(c), 1);
+}
+
+// UYVY 4:2:2 packed as one RGBA8 texel per pixel pair (r = U, g = Y0, b = V, a = Y1), BT.709 limited
+// range, into an RGB picture of its full size (drawn 1:1: one target pixel per picture pixel).
+// The packed texture can't be filtered as it is, so it is unpacked once per frame and the
+// windows then filter the RGB picture.
+float4 ps_unpack(V i) : SV_Target {
+    int2 p = int2(i.pos.xy);
+    float4 t = tex.Load(int3(p.x / 2, p.y, 0));
+    float y = ((p.x & 1) ? t.a : t.g) * 255.0 - 16.0;
     float u = t.r * 255.0 - 128.0, v = t.b * 255.0 - 128.0;
     float yy = y / 219.0, cb = u / 224.0, cr = v / 224.0;
     return float4(saturate(float3(yy + 1.5748 * cr, yy - 0.1873 * cb - 0.4681 * cr, yy + 1.8556 * cb)), 1);
@@ -103,9 +135,11 @@ public:
         device_->CreateVertexShader(vsb->GetBufferPointer(), vsb->GetBufferSize(), nullptr, &vs_);
         device_->CreatePixelShader(psb->GetBufferPointer(), psb->GetBufferSize(), nullptr, &ps_);
         ComPtr<ID3DBlob> uyb;
-        if (FAILED(D3DCompile(kShader, std::strlen(kShader), "receiver", nullptr, nullptr, "ps_uyvy", "ps_5_0", 0, 0, &uyb, &err)))
+        if (FAILED(D3DCompile(kShader, std::strlen(kShader), "receiver", nullptr, nullptr, "ps_unpack", "ps_5_0", 0, 0, &uyb, &err)))
             return error = "UYVY shader compile failed", false;
-        device_->CreatePixelShader(uyb->GetBufferPointer(), uyb->GetBufferSize(), nullptr, &psUyvy_);
+        device_->CreatePixelShader(uyb->GetBufferPointer(), uyb->GetBufferSize(), nullptr, &psUnpack_);
+        // Set to go back to plain bilinear enlarging (if the bicubic filter is too much for the GPU).
+        plainScaling_ = std::getenv("MOSAIC_PLAIN_SCALING") != nullptr;
         D3D11_BUFFER_DESC cb = {};
         cb.ByteWidth = 16;
         cb.Usage = D3D11_USAGE_DYNAMIC;
@@ -178,6 +212,8 @@ public:
     // Each stream has a ring of kPictureHistory textures. The textures are mapped here, on the
     // render thread, and the pixel copies (the slow part: ~17 MB per 4K picture) run on one
     // thread per picture, so four 4K streams take about as long as one.
+    // A UYVY stream is copied into one packed texture (`raw`) and unpacked on the GPU into the
+    // ring's RGB picture, so the windows can filter it like any other.
     void clearPictures() override { textures_.clear(); }
     void upload(const std::vector<Upload>& frames) override {
         struct Copy {
@@ -187,14 +223,17 @@ public:
         };
         std::vector<Copy> copies;
         std::vector<ID3D11Texture2D*> mapped;
+        std::vector<std::pair<Stream*, Picture*>> unpacks;  // UYVY: packed texture -> this RGB picture
         for (auto& u : frames) {
             const RxFrame& f = *u.frame;
             auto& s = textures_[u.stream];
             if (s.w != f.width || s.h != f.height || s.uyvy != f.uyvy) s = {};
             Picture& t = s.ring[(s.gen + 1) % kPictureHistory];
-            if (!t.tex) {
+            // What the frame is copied into: the packed texture (UYVY), or the ring's picture itself.
+            Picture& into = f.uyvy ? s.raw : t;
+            if (!into.tex) {
                 D3D11_TEXTURE2D_DESC d = {};
-                // UYVY: half as wide, one RGBA8 texel per pixel pair; converted in ps_uyvy.
+                // UYVY: half as wide, one RGBA8 texel per pixel pair; unpacked by ps_unpack.
                 d.Width = static_cast<UINT>(f.uyvy ? (f.width + 1) / 2 : f.width);
                 d.Height = static_cast<UINT>(f.height);
                 d.MipLevels = d.ArraySize = 1;
@@ -203,16 +242,30 @@ public:
                 d.Usage = D3D11_USAGE_DYNAMIC;
                 d.BindFlags = D3D11_BIND_SHADER_RESOURCE;
                 d.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+                if (FAILED(device_->CreateTexture2D(&d, nullptr, &into.tex))) continue;
+                device_->CreateShaderResourceView(into.tex.Get(), nullptr, &into.srv);
+            }
+            if (f.uyvy && !t.tex) {
+                D3D11_TEXTURE2D_DESC d = {};
+                d.Width = static_cast<UINT>(f.width);
+                d.Height = static_cast<UINT>(f.height);
+                d.MipLevels = d.ArraySize = 1;
+                d.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                d.SampleDesc.Count = 1;
+                d.Usage = D3D11_USAGE_DEFAULT;
+                d.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
                 if (FAILED(device_->CreateTexture2D(&d, nullptr, &t.tex))) continue;
                 device_->CreateShaderResourceView(t.tex.Get(), nullptr, &t.srv);
-                s.w = f.width;
-                s.h = f.height;
-                s.uyvy = f.uyvy;
+                device_->CreateRenderTargetView(t.tex.Get(), nullptr, &t.rtv);
             }
+            s.w = f.width;
+            s.h = f.height;
+            s.uyvy = f.uyvy;
             D3D11_MAPPED_SUBRESOURCE m;
-            if (FAILED(ctx_->Map(t.tex.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m))) continue;
+            if (FAILED(ctx_->Map(into.tex.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m))) continue;
             copies.push_back({static_cast<uint8_t*>(m.pData), m.RowPitch, &f});
-            mapped.push_back(t.tex.Get());
+            mapped.push_back(into.tex.Get());
+            if (f.uyvy) unpacks.push_back({&s, &t});
             ++s.gen;
             s.count = std::min(s.count + 1, kPictureHistory);
         }
@@ -226,6 +279,26 @@ public:
         if (!copies.empty()) copy(copies[0]);
         for (auto& w : workers) w.join();
         for (auto* tex : mapped) ctx_->Unmap(tex, 0);
+        if (unpacks.empty()) return;
+        ctx_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        ctx_->IASetInputLayout(nullptr);
+        ctx_->VSSetShader(vs_.Get(), nullptr, 0);
+        ctx_->PSSetShader(psUnpack_.Get(), nullptr, 0);
+        ctx_->RSSetState(raster_.Get());
+        ID3D11ShaderResourceView* none = nullptr;
+        for (auto& [s, pic] : unpacks) {
+            if (!pic->rtv || !s->raw.srv) continue;
+            ctx_->PSSetShaderResources(0, 1, &none);  // the picture may still be bound from the last draw
+            ctx_->OMSetRenderTargets(1, pic->rtv.GetAddressOf(), nullptr);
+            D3D11_VIEWPORT vp = {0, 0, float(s->w), float(s->h), 0, 1};
+            ctx_->RSSetViewports(1, &vp);
+            D3D11_RECT sc = {0, 0, s->w, s->h};
+            ctx_->RSSetScissorRects(1, &sc);
+            ctx_->PSSetShaderResources(0, 1, s->raw.srv.GetAddressOf());
+            ctx_->Draw(3, 0);
+        }
+        ctx_->PSSetShaderResources(0, 1, &none);
+        ctx_->OMSetRenderTargets(0, nullptr, nullptr);  // so the pictures can be sampled
     }
 
     void present(const std::vector<TileDraw>& tiles, const std::vector<bool>& flash, const std::vector<bool>& which) override {
@@ -245,6 +318,7 @@ public:
         ctx_->VSSetShader(vs_.Get(), nullptr, 0);
         ctx_->PSSetShader(ps_.Get(), nullptr, 0);
         ctx_->PSSetSamplers(0, 1, sampler_.GetAddressOf());
+        ctx_->PSSetConstantBuffers(0, 1, picture_.GetAddressOf());
         ctx_->RSSetState(raster_.Get());
         for (size_t i = 0; i < windows_.size(); ++i) {
             if (!go[i]) continue;
@@ -270,17 +344,13 @@ public:
                 ctx_->RSSetViewports(1, &vp);
                 D3D11_RECT sc = {t.x, t.y, t.x + t.w, t.y + t.h};
                 ctx_->RSSetScissorRects(1, &sc);
-                if (st.uyvy) {
-                    D3D11_MAPPED_SUBRESOURCE m;
-                    if (SUCCEEDED(ctx_->Map(picture_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m))) {
-                        float size[4] = {float(st.w), float(st.h), 0, 0};
-                        std::memcpy(m.pData, size, sizeof size);
-                        ctx_->Unmap(picture_.Get(), 0);
-                    }
-                    ctx_->PSSetShader(psUyvy_.Get(), nullptr, 0);
-                    ctx_->PSSetConstantBuffers(0, 1, picture_.GetAddressOf());
-                } else {
-                    ctx_->PSSetShader(ps_.Get(), nullptr, 0);
+                // Bicubic when the picture is drawn larger than it is; 1:1 and shrinking stay bilinear.
+                const bool enlarged = !plainScaling_ && fullW > float(st.w) * 1.02f && fullH > float(st.h) * 1.02f;
+                D3D11_MAPPED_SUBRESOURCE m;
+                if (SUCCEEDED(ctx_->Map(picture_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m))) {
+                    float params[4] = {float(st.w), float(st.h), enlarged ? 1.f : 0.f, 0};
+                    std::memcpy(m.pData, params, sizeof params);
+                    ctx_->Unmap(picture_.Get(), 0);
                 }
                 ctx_->PSSetShaderResources(0, 1, pic.srv.GetAddressOf());
                 ctx_->Draw(3, 0);
@@ -374,8 +444,10 @@ private:
     struct Picture {
         ComPtr<ID3D11Texture2D> tex;
         ComPtr<ID3D11ShaderResourceView> srv;
+        ComPtr<ID3D11RenderTargetView> rtv;  // UYVY streams: the RGB picture is drawn from the packed frame
     };
     struct Stream {
+        Picture raw;                                // UYVY streams: the newest frame as it arrived (packed)
         std::array<Picture, kPictureHistory> ring;  // ring[gen % kPictureHistory] is the newest
         int gen = 0, count = 0;                     // pictures uploaded; how many the ring holds
         int w = 0, h = 0;                           // picture size in pixels
@@ -428,7 +500,8 @@ private:
     ComPtr<IDXGIFactory2> factory_;
     ComPtr<IDXGIOutput> output_;  // the first window's monitor (paces the loop)
     ComPtr<ID3D11VertexShader> vs_;
-    ComPtr<ID3D11PixelShader> ps_, psUyvy_;
+    ComPtr<ID3D11PixelShader> ps_, psUnpack_;
+    bool plainScaling_ = false;
     ComPtr<ID3D11Buffer> picture_;
     ComPtr<ID3D11SamplerState> sampler_;
     ComPtr<ID3D11RasterizerState> raster_;

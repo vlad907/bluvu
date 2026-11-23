@@ -16,8 +16,8 @@ struct Uniforms {
     float4 sizes;     // source w, source h, dst w, dst h
     float4 bg;        // background colour
     float4 fparams;   // time, tile w, tile h, opacity (textured draws)
-    uint4  iparams;   // frame id, rotation, scale mode, flags
-    float4 xform;     // cos, sin of the crop's free angle, -, -
+    uint4  iparams;   // frame id, rotation, scale mode, flags (1 solid, 2 texture alpha, 4 colour correction, 8 plain filtering)
+    float4 xform;     // cos, sin of the crop's free angle; the texture's real width, height if not sizes.xy (else 0)
     float4 grade0;    // colour correction (flags bit 4): red, green, blue gain, brightness
     float4 grade1;    // contrast, saturation, gamma, -
 };
@@ -71,6 +71,60 @@ float3 outputSampleUV(float2 uv, uint rot, uint mode, float4 crop, float2 srcSiz
     float2 suv = p / srcSize;
     float ok = (m.z > 0.5 && suv.x >= 0.0 && suv.y >= 0.0 && suv.x <= 1.0 && suv.y <= 1.0) ? 1.0 : 0.0;
     return float3(suv.x, suv.y, ok);
+}
+
+// ---------------------------------------------------------------------------
+// Sharper enlarging
+// ---------------------------------------------------------------------------
+// A picture shown larger than it is (a small part of the canvas on a big screen) is soft and
+// blocky with plain bilinear filtering. Catmull-Rom (bicubic) keeps edges crisp. Its 16 texels
+// are read as 9 bilinear taps: where to sample (texture coordinates) and with what weight, per
+// axis. Needs a linear, clamping sampler. The result can overshoot slightly at hard edges, so
+// the caller clamps it.
+struct SharpTaps {
+    float2 p0;
+    float2 p12;
+    float2 p3;
+    float2 w0;
+    float2 w12;
+    float2 w3;
+};
+
+SharpTaps sharpTaps(float2 uv, float2 texSize) {
+    float2 pos = uv * texSize;
+    float2 c1 = floor(pos - 0.5) + 0.5;  // centre of the texel up and left of the position
+    float2 f = pos - c1;
+    float2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    float2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    float2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    float2 w3 = f * f * (-0.5 + 0.5 * f);
+    SharpTaps t;
+    t.w0 = w0;
+    t.w12 = w1 + w2;
+    t.w3 = w3;
+    t.p0 = (c1 - 1.0) / texSize;
+    t.p12 = (c1 + w2 / (w1 + w2)) / texSize;
+    t.p3 = (c1 + 2.0) / texSize;
+    return t;
+}
+
+// The sampled texture's size in texels. Usually the source size the crop is given in; the
+// direct path samples one source in place of the canvas, at whatever resolution it has.
+float2 sampledSize(float4 sizes, float4 xform) {
+    return xform.z > 0.0 ? xform.zw : sizes.xy;
+}
+
+// Whether a draw should use it: when the picture is enlarged, or tilted by a free angle at
+// about its own size (which bilinear blurs too). Shrinking and 1:1 stay bilinear, so a picture
+// shown pixel for pixel is untouched. Flag 8 turns it off for one output.
+// cropTexels: the crop's size in texels of the sampled texture.
+bool sharpWanted(uint rot, uint mode, float2 cropTexels, float2 outSize, float2 cs, uint flags) {
+    if ((flags & 8u) != 0u) return false;
+    bool sideways = (rot == 90u || rot == 270u);
+    float2 across = sideways ? float2(outSize.y, outSize.x) : outSize;
+    float2 s = across / cropTexels;  // output pixels per texel
+    float m = (mode == 2u) ? max(s.x, s.y) : min(s.x, s.y);
+    return m > 1.02 || (m > 0.98 && abs(cs.y) > 0.001);
 }
 
 // ---------------------------------------------------------------------------
@@ -253,12 +307,30 @@ fragment float4 ps_pattern(VOut in [[stage_in]], constant Uniforms& u [[buffer(0
     return testPattern(in.pos.xy - u.dstRect.xy, u.dstRect.zw, u.fparams.yz, u.iparams.x, u.fparams.x);
 }
 
+// The source at texture coordinate uv: bicubic when the draw enlarges it (see sharpWanted), else bilinear.
+float4 sampleSource(float2 uv, constant Uniforms& u, texture2d<float> tex, sampler smp) {
+    float2 ts = sampledSize(u.sizes, u.xform);
+    if (!sharpWanted(u.iparams.y, u.iparams.z, u.crop.zw * ts / u.sizes.xy, u.sizes.zw, u.xform.xy, u.iparams.w))
+        return tex.sample(smp, uv, level(0));  // no mips; explicit LOD keeps it valid in branches
+    SharpTaps t = sharpTaps(uv, ts);
+    float4 c = tex.sample(smp, float2(t.p0.x, t.p0.y), level(0)) * (t.w0.x * t.w0.y)
+             + tex.sample(smp, float2(t.p12.x, t.p0.y), level(0)) * (t.w12.x * t.w0.y)
+             + tex.sample(smp, float2(t.p3.x, t.p0.y), level(0)) * (t.w3.x * t.w0.y)
+             + tex.sample(smp, float2(t.p0.x, t.p12.y), level(0)) * (t.w0.x * t.w12.y)
+             + tex.sample(smp, float2(t.p12.x, t.p12.y), level(0)) * (t.w12.x * t.w12.y)
+             + tex.sample(smp, float2(t.p3.x, t.p12.y), level(0)) * (t.w3.x * t.w12.y)
+             + tex.sample(smp, float2(t.p0.x, t.p3.y), level(0)) * (t.w0.x * t.w3.y)
+             + tex.sample(smp, float2(t.p12.x, t.p3.y), level(0)) * (t.w12.x * t.w3.y)
+             + tex.sample(smp, float2(t.p3.x, t.p3.y), level(0)) * (t.w3.x * t.w3.y);
+    return saturate(c);
+}
+
 // Colour of the output at uv (0..1): the mapped source pixel, or the background.
 float3 outColor(float2 uv, constant Uniforms& u, texture2d<float> tex, sampler smp) {
     float3 c = u.bg.rgb;  // solid colour, or outside the picture
     if ((u.iparams.w & 1u) == 0u) {
         float3 s = outputSampleUV(uv, u.iparams.y, u.iparams.z, u.crop, u.sizes.xy, u.sizes.zw, u.xform.xy);
-        if (s.z > 0.5) c = tex.sample(smp, s.xy, level(0)).rgb;  // no mips; explicit LOD keeps it valid in branches
+        if (s.z > 0.5) c = sampleSource(s.xy, u, tex, smp).rgb;
     }
     return (u.iparams.w & 4u) != 0u ? gradeColor(c, u.grade0, u.grade1) : c;
 }
@@ -271,7 +343,7 @@ fragment float4 ps_textured(VOut in [[stage_in]], constant Uniforms& u [[buffer(
     float alpha = u.fparams.w;
     if ((u.iparams.w & 2u) != 0u) {  // image with transparency: its own alpha counts too
         float3 s = outputSampleUV(uv, u.iparams.y, u.iparams.z, u.crop, u.sizes.xy, u.sizes.zw, u.xform.xy);
-        alpha *= s.z > 0.5 ? tex.sample(smp, s.xy, level(0)).a : 0.0;
+        alpha *= s.z > 0.5 ? sampleSource(s.xy, u, tex, smp).a : 0.0;
     }
     return float4(outColor(uv, u, tex, smp), alpha);
 }
@@ -310,11 +382,28 @@ float4 ps_pattern(float4 pos : SV_Position) : SV_Target {
     return testPattern(pos.xy - u.dstRect.xy, u.dstRect.zw, u.fparams.yz, u.iparams.x, u.fparams.x);
 }
 
+float4 sampleSource(float2 uv) {
+    float2 ts = sampledSize(u.sizes, u.xform);
+    if (!sharpWanted(u.iparams.y, u.iparams.z, u.crop.zw * ts / u.sizes.xy, u.sizes.zw, u.xform.xy, u.iparams.w))
+        return tex.SampleLevel(smp, uv, 0);
+    SharpTaps t = sharpTaps(uv, ts);
+    float4 c = tex.SampleLevel(smp, float2(t.p0.x, t.p0.y), 0) * (t.w0.x * t.w0.y)
+             + tex.SampleLevel(smp, float2(t.p12.x, t.p0.y), 0) * (t.w12.x * t.w0.y)
+             + tex.SampleLevel(smp, float2(t.p3.x, t.p0.y), 0) * (t.w3.x * t.w0.y)
+             + tex.SampleLevel(smp, float2(t.p0.x, t.p12.y), 0) * (t.w0.x * t.w12.y)
+             + tex.SampleLevel(smp, float2(t.p12.x, t.p12.y), 0) * (t.w12.x * t.w12.y)
+             + tex.SampleLevel(smp, float2(t.p3.x, t.p12.y), 0) * (t.w3.x * t.w12.y)
+             + tex.SampleLevel(smp, float2(t.p0.x, t.p3.y), 0) * (t.w0.x * t.w3.y)
+             + tex.SampleLevel(smp, float2(t.p12.x, t.p3.y), 0) * (t.w12.x * t.w3.y)
+             + tex.SampleLevel(smp, float2(t.p3.x, t.p3.y), 0) * (t.w3.x * t.w3.y);
+    return saturate(c);
+}
+
 float3 outColor(float2 uv) {
     float3 c = u.bg.rgb;
     if ((u.iparams.w & 1u) == 0u) {
         float3 s = outputSampleUV(uv, u.iparams.y, u.iparams.z, u.crop, u.sizes.xy, u.sizes.zw, u.xform.xy);
-        if (s.z > 0.5) c = tex.SampleLevel(smp, s.xy, 0).rgb;
+        if (s.z > 0.5) c = sampleSource(s.xy).rgb;
     }
     return (u.iparams.w & 4u) != 0u ? gradeColor(c, u.grade0, u.grade1) : c;
 }
@@ -324,7 +413,7 @@ float4 ps_textured(float4 pos : SV_Position) : SV_Target {
     float alpha = u.fparams.w;
     if ((u.iparams.w & 2u) != 0u) {
         float3 s = outputSampleUV(uv, u.iparams.y, u.iparams.z, u.crop, u.sizes.xy, u.sizes.zw, u.xform.xy);
-        alpha *= s.z > 0.5 ? tex.SampleLevel(smp, s.xy, 0).a : 0.0;
+        alpha *= s.z > 0.5 ? sampleSource(s.xy).a : 0.0;
     }
     return float4(outColor(uv), alpha);
 }

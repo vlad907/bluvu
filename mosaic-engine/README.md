@@ -109,13 +109,16 @@ Example layouts are in [layouts/](layouts):
 | `mixed-resolution.json` | 4K centre plus 1080p sides, using `fit`, `fill` and a 1:1 pixel crop |
 | `rotated-portrait.json` | Portrait displays (`rotation` 90 / 270) beside a landscape pair |
 | `wall-6x4-1080p.json` | 24 × 1080p panels in a 6×4 wall with 40 px bezels (11720×4440 canvas), made with the wall tool |
-| `inside-bar.json` | The inside bar wall from its measurements (323 × 142 in): a 2×2 of 98" panels sent as **one** 3840×2160 stream, and five tilted / portrait 40" and 24" screens a side at 1280×720. 30 fps. Made by `tools/make_inside_bar.py`: change the positions there and run it again |
+| `inside-bar.json` | The inside bar wall from its measurements (323 × 142 in): a 2×2 of 98" panels sent as **one** 3840×2160 stream, and five tilted / portrait 43" and 24" screens a side at 1920×1080. 30 fps. Made by `tools/make_inside_bar.py`: change the positions there and run it again |
 
 Output fields: `id`, `name`, `ndiName`, `width`/`height` (output resolution), `pixelFormat` (`uyvy`, the default, or `bgra`), `crop`
 (region in canvas pixels, or in source pixels when `source` is a source id),
 `rotation` (0/90/180/270, clockwise: how the panel is mounted), `angle` (free tilt in degrees,
 clockwise, of the crop about its centre: for panels hung at an angle), `scaleMode` (`stretch` | `fit` | `fill`),
 `source` (`"canvas"` or a source id), `enabled`, and `group` (the id of the wall group that made it, if any).
+A picture shown larger than it is (a small part of the canvas on a big screen), or tilted by a free angle, is
+filtered bicubically, which keeps its edges crisp; at its own size or smaller nothing changes. `smooth: true`
+puts one output back on plain bilinear filtering.
 A display output also has `display` (the monitor, `\\.\DISPLAY2`; empty = send as NDI), `displayMode`
 (`{"width", "height", "refreshHz"}`, absent = leave the monitor as Windows has it) and `delayMs` (0–1000).
 `color` holds its colour correction.

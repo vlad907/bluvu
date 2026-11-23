@@ -41,7 +41,8 @@ struct alignas(16) Uniforms {
     float bg[4];       // background / letterbox colour (RGBA)
     float fparams[4];  // time (s), tile width, tile height, opacity (drawTextured; blended over the target)
     uint32_t iparams[4];  // frame id, rotation (deg), scale mode, flags
-    float xform[4];    // cos, sin of the crop's free angle (clockwise about its centre), unused, unused
+    float xform[4];    // cos, sin of the crop's free angle (clockwise about its centre); the texture's real width, height when
+                       // they differ from the source size above (0 = the same): the direct path samples one source as the canvas
     float grade0[4];   // colour correction when flags bit 4 is set: red, green, blue gain, brightness
     float grade1[4];   // contrast, saturation, gamma, unused
 };

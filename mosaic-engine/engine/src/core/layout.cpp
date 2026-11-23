@@ -165,6 +165,7 @@ void to_json(json& j, const OutputConfig& o) {
     if (!o.display.empty() && !o.displayId.empty()) j["displayId"] = o.displayId;
     if (o.modeWidth > 0) j["displayMode"] = {{"width", o.modeWidth}, {"height", o.modeHeight}, {"refreshHz", o.modeHz}};
     if (o.delayMs > 0) j["delayMs"] = o.delayMs;
+    if (o.smooth) j["smooth"] = true;
     if (!o.color.neutral())
         j["color"] = {{"brightness", o.color.brightness}, {"contrast", o.color.contrast}, {"saturation", o.color.saturation}, {"gamma", o.color.gamma},
                       {"red", o.color.red},             {"green", o.color.green},       {"blue", o.color.blue}};
@@ -207,6 +208,7 @@ void patchOutput(OutputConfig& o, const json& p) {
         }
     }
     if (p.contains("delayMs")) o.delayMs = std::clamp(p.at("delayMs").get<int>(), 0, 1000);
+    o.smooth = p.value("smooth", o.smooth);
     if (p.contains("color") && p.at("color").is_object()) {
         const auto& c = p.at("color");  // partial updates allowed
         o.color.brightness = std::clamp(c.value("brightness", o.color.brightness), -0.5f, 0.5f);

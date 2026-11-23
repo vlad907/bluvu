@@ -418,11 +418,17 @@ void Engine::renderFrame(const Layout& layout, uint64_t frameId, Clock::time_poi
         u.xform[1] = std::sin(rad);
         u.sizes[0] = sw;
         u.sizes[1] = sh;
+        if (o->source == "canvas") {
+            // The view may be one source standing in for the canvas at its own resolution (the direct path).
+            u.xform[2] = view_.w;
+            u.xform[3] = view_.h;
+        }
         std::copy(layout.canvas.background.begin(), layout.canvas.background.end(), u.bg);
         u.iparams[0] = static_cast<uint32_t>(frameId);
         u.iparams[1] = static_cast<uint32_t>(o->rotation);
         u.iparams[2] = scaleModeIndex(o->scaleMode);
         u.iparams[3] = solid ? 1u : 0u;
+        if (o->smooth) u.iparams[3] |= 8u;
         if (!o->color.neutral()) {
             const ColorAdjust& c = o->color;
             u.iparams[3] |= 4u;

@@ -194,6 +194,29 @@ with tempfile.TemporaryDirectory() as tmp:
         after = [pixel(frame("out-1"), x, y) for x, y in probe]
         check(all(close(a, b, 10) for a, b in zip(after, target)), f"out-1 now matches out-2 {after} ~ {target}")
 
+        print("enlarged pictures are filtered bicubically:", flush=True)
+        def edges(img):  # how hard the picture's edges are: mean step between neighbours along some rows (green)
+            w, h, data = img
+            total = 0
+            for y in range(10, h, 20):
+                g = data[y * w * 4 + 1:(y + 1) * w * 4:4]
+                total += sum(abs(p - q) for p, q in zip(g, g[1:]))
+            return total / (len(range(10, h, 20)) * (w - 1))
+        whole = call("GET", "/api/outputs")["outputs"][0]["crop"]
+        call("PATCH", "/api/outputs/out-1", {"crop": {"x": 1920, "y": 0, "w": 480, "h": 270}})  # shown 4x its size
+        pause(1.0)
+        sharp = frame("out-1")
+        call("PATCH", "/api/outputs/out-1", {"smooth": True})
+        pause(1.0)
+        plain = frame("out-1")
+        check(edges(sharp) > edges(plain) * 1.05, f"edges are harder than with bilinear ({edges(sharp):.2f} against {edges(plain):.2f})")
+        flat = (1320, 760)  # the middle of a grid cell (330, 190 in the crop): one colour, which neither filter may change
+        check(close(pixel(sharp, *flat), pixel(plain, *flat), 2), f"a flat area keeps its colour ({pixel(sharp, *flat)} ~ {pixel(plain, *flat)})")
+        call("PATCH", "/api/outputs/out-1", {"smooth": False, "crop": whole})
+        pause(1.0)
+        back = [pixel(frame("out-1"), x, y) for x, y in probe]
+        check(all(close(a, b, 10) for a, b in zip(back, target)), "and the output is as before at its own size")
+
         print("source opacity (alpha blending):", flush=True)
         spot = (330, 330)
         base = pixel(frame("out-1"), *spot)

@@ -88,6 +88,9 @@ struct OutputConfig {
     int modeWidth = 0, modeHeight = 0, modeHz = 0;
     int delayMs = 0;  // 0..1000
     ColorAdjust color;
+    // Enlarged pictures are filtered bicubically (crisper edges). True goes back to plain bilinear
+    // for this output, if the sharper picture isn't wanted on it.
+    bool smooth = false;
     bool enabled = true;
 };
 
