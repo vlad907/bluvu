@@ -4,6 +4,7 @@ import { api, storeKey, storedKey, type Layout, type LayoutVersion, type MediaFi
 import { AudioSection } from "./Audio";
 import { BackgroundSettings } from "./Arrangement";
 import { CanvasSettings } from "./CanvasSettings";
+import { LicenseSection } from "./License";
 import { UpdatesSection } from "./Updates";
 
 const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -70,7 +71,7 @@ export function MediaSelect({
   );
 }
 
-// Settings section (left panel): layout history and files, media, signal loss, access.
+// Settings section (left panel): layout history and files, media, signal loss, access, license, updates.
 export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; onChanged: () => void; onError: (e: unknown) => void }) {
   const [history, setHistory] = useState<LayoutVersion[]>([]);
   const [media, setMedia] = useState<MediaFile[]>([]);
@@ -294,6 +295,8 @@ export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; 
           </button>
         )}
       </section>
+
+      <LicenseSection onError={onError} />
 
       <UpdatesSection onError={onError} />
     </>

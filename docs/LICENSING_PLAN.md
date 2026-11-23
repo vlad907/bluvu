@@ -180,7 +180,7 @@ Windows CI green, shown working in test mode before the next one starts.
    states, `GET /api/license`, screen counting, the lock decisions computed but **not enforced**.
    Tests: good / tampered / expired / wrong machine / clock back / grace / limit, and walls keep
    playing and a restart reloads the layout in every failure case.
-2. **Editor**: Settings → License (key, online and offline activation, plan and usage, renew link),
+2. **Editor** (**built**): Settings → License (key, online and offline activation, plan and usage, renew link),
    banners, limit messages.
 3. **License server** (test deployment) with the admin view; issue the inside bar's comp license.
 4. **Payments** in sandbox: checkout, webhooks, renewals, upgrade, failed payment, portal.
@@ -222,3 +222,19 @@ All answered: see **Decisions** at the top. Still open: the domain name.
   (real engines: no license, damaged file, Starter at its limit, tampered and another PC's file refused over
   the API, offline activation round trip, expired and over the limit with a restart, grace, another PC, clock
   set back; every case checks all outputs keep rendering). CI runs both.
+
+## Phase 2 as built
+
+- `mosaic-engine/ui/src/License.tsx`: Settings → License shows the plan, customer, state in words,
+  screens used of allowed (with a bar), walls / sound outputs / capture cards, and what lapsing means.
+  Renew, Upgrade / Buy and Account link to the website (`https://bluvu.example/...` until the domain is
+  chosen; the engine sends the links in `GET /api/license` → `links`). Activate: a key field, **Get request
+  code** (offline activation: copy it to the website's activate page), **Install license file…** or paste.
+  **Remove from this server** (for a move). The PC's identifier hashes (short) are shown for support.
+- Top bar: a pill when something needs doing (expiring, grace, trial, lapsed, or no license while
+  enforced); it opens Settings → License. In report-only mode a missing license shows no pill and a
+  neutral box, so venue editors look as before.
+- A change the license refuses comes back as `403` with `"license": true`; the editor shows the reason
+  ("Starter allows 8 screens; this would be 9.") with a **License settings** button.
+- Online activation (a button shown when `GET /api/license` → `online` is true) arrives with the license
+  server in phase 3.

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DialogHost, dialog, toast } from "./Dialogs";
-import { api, LockedError, withCanvas, type EndpointsInfo, type Layout, type Metrics, type Output, type Rect, type Screen, type Source } from "./api";
+import { api, LicenseError, LockedError, withCanvas, type EndpointsInfo, type Layout, type Metrics, type Output, type Rect, type Screen, type Source } from "./api";
 import { BezelPanel } from "./Bezel";
 import { CanvasEditor, type EditMode } from "./CanvasEditor";
 import { EndpointList, EndpointPanel } from "./Endpoints";
 import { Inspector } from "./Inspector";
+import { LicensePill, useLicense } from "./License";
 import { Icon } from "./Icons";
 import { MonitorView, PresetBar, StatusBar } from "./Monitor";
 import { LayoutBar, OutputList, ScenesPanel, SourcesPanel } from "./Panels";
@@ -19,7 +20,7 @@ const SECTIONS: [Section, string, string][] = [
   ["presets", "Presets", "Group presets and scenes"],
   ["endpoints", "Endpoints", "Receiving PCs and their displays"],
   ["monitor", "Monitor", "Engine and output health"],
-  ["settings", "Settings", "Layout history and files, media, signal loss, access"],
+  ["settings", "Settings", "Layout history and files, media, signal loss, access, license, updates"],
 ];
 
 export function App() {
@@ -83,8 +84,36 @@ export function App() {
         .catch((e) => setError(String(e))),
     [],
   );
-  // A refused change opens the PIN prompt instead of an error banner.
-  const onError = useCallback((e: unknown) => (e instanceof LockedError ? undefined : toast(e instanceof Error ? e.message : String(e), "error")), []);
+  // Settings → License, scrolled into view.
+  const [license] = useLicense();
+  const openLicense = useCallback(() => {
+    setSection("settings");
+    setEndpointId(null);
+    setWallEdit(null);
+    // The Settings panel renders its sections as their data arrives: try until the section is there.
+    let tries = 0;
+    const scroll = () => {
+      const el = document.getElementById("license");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      else if (++tries < 20) setTimeout(scroll, 100);
+    };
+    setTimeout(scroll, 50);
+  }, []);
+  // A refused change opens the PIN prompt instead of an error banner; one the license refused
+  // (lapsed, or over the plan's limit) says why and offers Settings → License.
+  const onError = useCallback(
+    (e: unknown) => {
+      if (e instanceof LockedError) return;
+      if (e instanceof LicenseError) {
+        dialog
+          .confirm("The license doesn't allow this", { message: e.message, okLabel: "License settings" })
+          .then((open) => open && openLicense());
+        return;
+      }
+      toast(e instanceof Error ? e.message : String(e), "error");
+    },
+    [openLicense],
+  );
   const [unlock, setUnlock] = useState(false);
   useEffect(() => {
     const open = () => setUnlock(true);
@@ -548,7 +577,17 @@ export function App() {
 
   return (
     <div className="app">
-      <LayoutBar layout={layout} status={engineStatus} onChanged={reload} onError={onError} />
+      <LayoutBar
+        layout={layout}
+        status={
+          <>
+            <LicensePill info={license} onOpen={openLicense} />
+            {engineStatus}
+          </>
+        }
+        onChanged={reload}
+        onError={onError}
+      />
       <nav className="rail">
         {SECTIONS.map(([id, label, title]) => (
           <button key={id} className={section === id ? "on" : ""} onClick={() => openSection(id)} title={title}>

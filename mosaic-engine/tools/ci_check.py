@@ -23,6 +23,13 @@ Set MOSAIC_SOFTWARE_GPU=1 to run on WARP (no GPU needed). Exits non-zero on fail
 """
 import argparse, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
+# Messages carry "→" and "×"; Windows consoles and pipes default to cp1252, which can't print them.
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.dirname(here)
 default_engine = os.path.join(root, "build", "Release", "mosaic_engine.exe") if os.name == "nt" else os.path.join(root, "build", "mosaic_engine")
@@ -849,7 +856,8 @@ with tempfile.TemporaryDirectory() as tmp:
 # Licensing (tools/license_check.py): every failure case keeps the walls playing; limits and locks.
 print("licensing:", flush=True)
 lc = subprocess.run([sys.executable, os.path.join(here, "license_check.py"), "--engine", args.engine, "--out", args.out, "--port", str(args.port + 1)],
-                    capture_output=True, text=True, timeout=1200)
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1200,
+                    env=dict(os.environ, PYTHONIOENCODING="utf-8"))
 print("".join("  " + line + "\n" for line in lc.stdout.splitlines()), end="", flush=True)
 check(lc.returncode == 0, "licensing never blacks out a wall, and its limits and locks hold (tools/license_check.py)" + ("" if lc.returncode == 0 else ": " + lc.stderr[-400:]))
 

@@ -19,6 +19,9 @@ namespace {
 constexpr int64_t kDay = 86400;
 constexpr int64_t kExpiringDays = 30;   // the quiet banner starts this long before expiry
 constexpr int64_t kClockSlack = 2 * kDay;
+// The website (the domain isn't chosen yet: docs/LICENSING_PLAN.md). Buy, renew, account, and the
+// offline activation page that turns a request code into a license file.
+constexpr const char* kSite = "https://bluvu.example";
 
 int64_t nowSeconds() {
     return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -282,6 +285,9 @@ json Manager::statusJson(const Usage& usage) {
         {"locks", {{"setup", s.locked()}, {"updates", s.locked()},
                    {"addScreens", s.locked() || (s.maxScreens >= 0 && usage.screens >= s.maxScreens)}}},
         {"machine", here_.toJson()},
+        {"links", {{"buy", std::string(kSite) + "/products.html#license"}, {"account", std::string(kSite) + "/account"},
+                   {"renew", std::string(kSite) + "/account?renew=" + p.value("licenseId", "")}, {"activate", std::string(kSite) + "/activate"}}},
+        {"online", false},  // online activation arrives with the license server (phase 3)
 #ifdef MOSAIC_LICENSE_TEST_KEY
         {"testBuild", true},
 #else

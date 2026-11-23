@@ -499,6 +499,35 @@ export function storeKey(key: string) {
 // Raised when a change is refused for lack of a PIN; the app then asks for one.
 export class LockedError extends Error {}
 
+// Raised when the license refuses a change (lapsed, or over the plan's limit); the app offers
+// Settings → License. The message says why, in words.
+export class LicenseError extends Error {}
+
+// GET /api/license (docs/LICENSING_PLAN.md).
+export type LicenseState = "trial" | "valid" | "expiring" | "grace" | "expired" | "none" | "invalid";
+export interface LicenseInfo {
+  state: LicenseState;
+  reason: string;
+  enforced: boolean; // false = report-only: nothing is refused yet
+  testBuild: boolean;
+  plan: string;
+  customer: string;
+  licenseId: string;
+  trial: boolean;
+  maxScreens: number; // -1 = unlimited
+  features: string[];
+  issuedAt: string;
+  expires: string | null; // null = never
+  graceUntil: string | null;
+  daysLeft: number;
+  used: { screens: number; canvases: number; audioOutputs: number; captureSources: number };
+  locks: { setup: boolean; updates: boolean; addScreens: boolean };
+  wouldBlock: { count: number; last: { what: string; why: string; time: string; refused: boolean } | null };
+  links: { buy: string; account: string; renew: string; activate: string };
+  machine: { machineGuid: string; smbiosUuid: string; systemDisk: string }; // hashes
+  online: boolean; // online activation available (the license server)
+}
+
 async function call<T>(method: string, path: string, body?: unknown, raw?: Blob): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -516,6 +545,10 @@ async function call<T>(method: string, path: string, body?: unknown, raw?: Blob)
     window.dispatchEvent(new Event("mosaic-locked"));
     throw new LockedError("Enter the PIN to make changes.");
   }
+  if (res.status === 403 && (data as { license?: boolean }).license) {
+    window.dispatchEvent(new Event("mosaic-license"));
+    throw new LicenseError((data as { error?: string }).error ?? "Not allowed by the license.");
+  }
   if (!res.ok) throw new Error((data as { error?: string }).error ?? res.statusText);
   return data as T;
 }
@@ -524,6 +557,10 @@ export const api = {
   security: () => call<{ pinSet: boolean; apiKeySet: boolean; locked: boolean }>("GET", "/api/security"),
   putSecurity: (s: { editorPin?: string; apiKey?: string }) => call<{ pinSet: boolean; apiKeySet: boolean }>("PUT", "/api/security", s),
   checkKey: () => call("POST", "/api/security/check", {}),
+  license: () => call<LicenseInfo>("GET", "/api/license"),
+  installLicense: (fileText: string) => call<LicenseInfo>("PUT", "/api/license", undefined, new Blob([fileText], { type: "application/json" })),
+  removeLicense: () => call<LicenseInfo>("DELETE", "/api/license"),
+  licenseRequestCode: (key: string) => call<{ code: string }>("POST", "/api/license/request-code", { key }).then((r) => r.code),
   history: (layoutId: string) => call<{ history: LayoutVersion[] }>("GET", `/api/layouts/${layoutId}/history`).then((r) => r.history),
   restore: (layoutId: string, version: string) => call("POST", `/api/layouts/${layoutId}/history/${version}/restore`, {}),
   getLayout: (id: string) => call<Layout>("GET", `/api/layouts/${id}`),

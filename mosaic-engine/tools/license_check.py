@@ -16,6 +16,13 @@ bluvu_license tool next to the engine. Without them only the unsigned cases run.
 """
 import argparse, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
+# Messages carry "→" and "×"; Windows consoles and pipes default to cp1252, which can't print them.
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.dirname(here)
 exe = ".exe" if os.name == "nt" else ""

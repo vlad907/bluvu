@@ -656,11 +656,12 @@ struct HttpApi::Impl {
         return [this, f](const httplib::Request& req, httplib::Response& res) {
             try {
                 if (license && req.method != "GET" && req.method != "HEAD") {
-                    if (auto why = license->checkRequest(req.method, req.path, req.body); !why.empty()) return sendError(res, 403, why);
+                    if (auto why = license->checkRequest(req.method, req.path, req.body); !why.empty())
+                        return sendJson(res, {{"error", why}, {"license", true}}, 403);
                 }
                 f(req, res);
             } catch (const ChangeRefused& r) {
-                sendError(res, 403, r.why);
+                sendJson(res, {{"error", r.why}, {"license", true}}, 403);  // "license": the editor offers Settings → License
             } catch (const json::exception& e) {
                 sendError(res, 400, std::string("bad request: ") + e.what());
             } catch (const std::exception& e) {
