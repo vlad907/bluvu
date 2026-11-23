@@ -524,6 +524,7 @@ struct HttpApi::Impl {
         j["identifySecondsLeft"] = std::round(identifyLeft(e.host));
         j["lastSeenSecondsAgo"] = ago < 0 ? json(nullptr) : json(std::round(ago));
         j["address"] = last.value("address", "");
+        j["dashboardPort"] = last.value("dashboardPort", 8080);  // the editor links to the PC's own dashboard
         j["receiverVersion"] = last.value("receiverVersion", "");
         j["receiverUpdate"] = last.value("receiverUpdate", "");
         j["version"] = last.value("version", "");
@@ -1185,6 +1186,7 @@ struct HttpApi::Impl {
                     if (!known.count(key) && now - c.value("time", 0.0) < 600)
                         unassigned.push_back({{"host", c.value("host", key)},
                                               {"address", c.value("address", "")},
+                                              {"dashboardPort", c.value("dashboardPort", 8080)},
                                               {"screens", c.value("screens", json::array())},
                                               {"online", now - c.value("time", 0.0) < kEndpointOnlineSeconds}});
             }

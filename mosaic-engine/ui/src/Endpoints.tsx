@@ -80,6 +80,11 @@ export function EndpointList({
               not set up · {u.screens.length} screen(s) · {u.address}
             </small>
           </div>
+          {u.address && (
+            <button style={{ background: "transparent", color: "var(--muted)" }} onClick={() => openDashboard(u.address, u.dashboardPort)} title="Open this PC's own dashboard in a new tab">
+              Dashboard ↗
+            </button>
+          )}
           <button onClick={() => onSetUp(u.host, u.screens)}>Set up</button>
         </div>
       ))}
@@ -91,6 +96,10 @@ export function EndpointList({
     </section>
   );
 }
+
+// A receiving PC's own dashboard (videowall.py), at the address it last checked in from.
+const dashboardUrl = (address: string, port?: number) => `http://${address.includes(":") ? `[${address}]` : address}:${port || 8080}/`;
+const openDashboard = (address: string, port?: number) => window.open(dashboardUrl(address, port), "_blank", "noopener");
 
 // One endpoint: which output each display slot shows, on which screen, and whether it's playing.
 export function EndpointPanel({
@@ -164,7 +173,14 @@ export function EndpointPanel({
         <h2>
           <span className={`dot ${endpoint.online ? "on" : "off"}`} /> {endpoint.name}
         </h2>
-        <button onClick={onClose}>Close</button>
+        <span style={{ display: "flex", gap: 6, flex: "none" }}>
+          {endpoint.address && (
+            <button onClick={() => openDashboard(endpoint.address, endpoint.dashboardPort)} title={`Open this PC's own dashboard (${dashboardUrl(endpoint.address, endpoint.dashboardPort)}) in a new tab`}>
+              Dashboard ↗
+            </button>
+          )}
+          <button onClick={onClose}>Close</button>
+        </span>
       </div>
       <small className="muted">
         {endpoint.online

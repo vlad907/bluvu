@@ -551,10 +551,11 @@ with tempfile.TemporaryDirectory() as tmp:
         check(len(json.loads(get("/api/layouts/ci/history")[1])["history"]) == len(hist) + 1, "the replaced version is kept too")
 
         print("endpoints:", flush=True)
-        r = call("POST", "/api/endpoints/checkin", {"host": "WALL-PC.example.org", "screens": [], "panels": []})
+        r = call("POST", "/api/endpoints/checkin", {"host": "WALL-PC.example.org", "dashboardPort": 9000, "screens": [], "panels": []})
         check(r["endpoint"] is None, "an unknown PC gets no assignment")
-        unassigned = [u["host"] for u in json.loads(get("/api/endpoints")[1])["unassigned"]]
+        unassigned = {u["host"]: u for u in json.loads(get("/api/endpoints")[1])["unassigned"]}
         check("WALL-PC.example.org" in unassigned, "it is listed as a PC to set up")
+        check(unassigned.get("WALL-PC.example.org", {}).get("dashboardPort") == 9000, "with the port of its dashboard, for the editor's link")
         call("POST", "/api/endpoints", {"name": "Spare PC", "host": "spare-pc", "displays": [{"output": "out-1"}]})
         spare = next(x for x in json.loads(get("/api/endpoints")[1])["endpoints"] if x["id"] == "spare-pc")
         check(not spare["online"] and spare["lastSeenSecondsAgo"] is None, "an endpoint that never checked in is listed offline")

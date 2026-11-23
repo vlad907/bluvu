@@ -252,6 +252,7 @@ export interface EndpointView extends Omit<Endpoint, "displays"> {
   online: boolean;
   lastSeenSecondsAgo: number | null;
   address: string;
+  dashboardPort?: number; // where the PC's own dashboard listens
   version: string;
   screens: Screen[];
   identifySecondsLeft?: number; // its screens show their numbers for this much longer (0 = off)
@@ -310,7 +311,7 @@ export interface UpdateInfo {
 
 export interface EndpointsInfo {
   endpoints: EndpointView[];
-  unassigned: { host: string; address: string; screens: Screen[]; online: boolean }[];
+  unassigned: { host: string; address: string; dashboardPort?: number; screens: Screen[]; online: boolean }[];
   elsewhere?: { host: string; name: string; layout: string }[]; // PCs set up on other canvases
   // How far apart this canvas's receiving PCs show the same frames (Mosaic Receivers only).
   groupSync?: { pcs: number; frames?: number; spreadMs?: number; maxMs?: number; perPc?: { name: string; offsetMs: number }[] };
