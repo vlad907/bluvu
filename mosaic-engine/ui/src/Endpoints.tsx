@@ -109,7 +109,7 @@ export function EndpointPanel({
   onClose: () => void;
 }) {
   const [groupPick, setGroupPick] = useState("");
-  const slots: EndpointDisplay[] = endpoint.displays.map(({ screen, output, part }) => (part ? { screen, output, part } : { screen, output }));
+  const slots: EndpointDisplay[] = endpoint.displays.map(({ screen, output, part, blank }) => ({ screen, output, ...(part ? { part } : {}), ...(blank ? { blank: true } : {}) }));
   // Ways to cut one stream across several screens: [label, cols, rows].
   const GRIDS: [string, number, number][] = [
     ["2×2", 2, 2],
@@ -376,6 +376,19 @@ export function EndpointPanel({
                 ))}
                 {d.screen && !endpoint.screens.some((s) => s.device === d.screen) && <option value={d.screen}>Screen: {d.screen} (not on this PC)</option>}
               </select>
+              {endpoint.player === "mosaic" && (
+                <label
+                  className="toggle"
+                  title="Shows black on this screen instead of its stream; the PC and its other screens carry on. For a monitor that can't be switched off by itself. Control panels switch it with POST /api/endpoints/<id>/displays/<n>/blank."
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!d.blank}
+                    onChange={(e) => api.blankEndpointDisplay(endpoint.id, i + 1, e.target.checked).then(onChanged).catch(onError)}
+                  />
+                  Off (black)
+                </label>
+              )}
               {d.part && (
                 <div
                   className="row"

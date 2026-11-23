@@ -114,6 +114,15 @@ static std::unique_ptr<FrameInput> makeInput(const DisplayConfig& d, std::string
         s.colour = o.value("colour", identifyColour(d.index - 1));
         return std::make_unique<IdentifyInput>(s);
     }
+    if (d.stream == "blank") {
+        // A screen switched off from the control panel: black, while the PC and its other screens
+        // carry on. (A monitor that can't be powered down by itself.)
+        IdentifyOptions s;
+        s.width = s.height = 64;
+        s.colour = 0xFF000000;
+        s.plain = true;
+        return std::make_unique<IdentifyInput>(s);
+    }
     return createNdiInput(d.stream, error);
 }
 

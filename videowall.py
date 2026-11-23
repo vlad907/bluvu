@@ -1165,7 +1165,7 @@ def receiver_panels():
     out = []
     for i, d in enumerate(cfg("receiver_displays") or [], start=1):
         st = shown.get(d.get("index")) or {}
-        ok = st.get("status") == "ok"
+        ok = st.get("status") in ("ok", "blank")  # blank: a screen switched off from the control panel, showing black as asked
         out.append({"index": i, "port": RECEIVER_PORT, "name": d.get("label") or "Display %d" % i, "screen": d.get("screen", ""),
                     "ndi_source": d["stream"], "playing": d["stream"] if ok else "", "reachable": bool(status),
                     "status": st.get("status", "receiver not running"), "frame": st.get("shownFrameId", 0)})

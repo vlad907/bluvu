@@ -121,7 +121,12 @@ show which preset is on.
     }
   ],
   "endpoints": [
-    { "id": "wall-pc-1", "name": "Wall PC 1", "online": true, "displays": 4, "displaysOk": 4 }
+    { "id": "wall-pc-1", "name": "Wall PC 1", "online": true, "displays": 2, "displaysOk": 2,
+      "blank": false, "displaysBlank": 1,
+      "screens": [
+        { "display": 1, "name": "Bar left", "output": "out-1", "blank": false, "ok": true },
+        { "display": 2, "name": "Office monitor", "output": "out-2", "blank": true, "ok": true }
+      ] }
   ],
   "scenes": [ { "id": "opening", "name": "Opening" } ],
   "layouts": [ { "id": "venue", "name": "Venue", "active": true } ],
@@ -138,6 +143,9 @@ show which preset is on.
   nothing of its own, only the canvas background under it.
 - `endpoints` are the receiving PCs set up in the editor: whether each is online, and how many of
   its displays play the stream they should (`displaysOk` of `displays`). Use it for a status page.
+  `screens` lists each screen of the PC (`display` counts from 1) with `blank`: whether it's
+  switched off (see "Switch a screen off" below). `displaysBlank` counts them, and the PC's own
+  `blank` is true when all of its screens are off. A screen showing black as asked counts as `ok`.
 - `noSignal` names the group's streams that have sent nothing for 2 s. The group shows its fallback
   image there if one is set (editor: group → Content → *If a stream drops, show*).
 - `ndi.streams` are the streams NDI discovery currently sees on the network.
@@ -467,6 +475,29 @@ How a display gets its picture doesn't change how it's controlled:
 
 A single display that should be switchable on its own needs to be its own group: in the editor,
 Outputs → *+ Group* → 1 × 1. Outputs that aren't in a group follow the canvas (scenes and layouts).
+
+**Switch a screen off (black) without touching the PC**
+
+For a screen that can't be powered down by itself, such as a monitor on a receiving PC that has to
+stay on: the screen shows black, and the PC, its other screens and every stream carry on.
+
+| Call | Body | What it does |
+|---|---|---|
+| `POST /api/endpoints/<id>/displays/<n>/blank?canvas=<id>` | `{"on": true}` | Screen `n` of that PC (1 = its first) goes black |
+| same | `{"on": false}` | That screen shows its stream again |
+| `POST /api/endpoints/<id>/blank?canvas=<id>` | `{"on": true}` / `{"on": false}` | Every screen of that PC |
+| same | `{"on": true, "display": 2}` | One screen, numbered in the body instead of the path |
+
+- `<id>` and the screen numbers come from `GET /api/control` → `endpoints[].id` and
+  `endpoints[].screens[].display`; `screens[].blank` is the current state.
+- The reply is the PC's full status (as `GET /api/endpoints/<id>`), each display with `blank`.
+- The PC picks the change up at its next check-in, a few seconds later.
+- It is saved with the layout: a screen switched off stays off through restarts and updates until
+  it is switched back on.
+- The screen shows black, it isn't powered down: its backlight stays on.
+- Errors: 404 no such PC, 400 the PC has no screen `n`, 400 the PC doesn't use the Mosaic Receiver.
+- Changes need the `X-Api-Key` header when a PIN is set, like every other change.
+- The editor has the same switch: Endpoints → a PC → *Off (black)* on each display.
 
 **Is every display up?**
 

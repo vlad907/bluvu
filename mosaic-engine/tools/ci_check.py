@@ -550,6 +550,40 @@ with tempfile.TemporaryDirectory() as tmp:
         e = next(x for x in json.loads(get("/api/endpoints")[1])["endpoints"] if x["id"] == "wall-pc")
         check(e["receiver"]["spreadMax10s"] == 0 and e["displays"][0]["shownFrameId"] == 1234, "the receiver's sync status reaches the editor")
 
+        print("switching one screen of a PC off (black), the PC stays on:", flush=True)
+        e = call("POST", "/api/endpoints/wall-pc/displays/2/blank", {"on": True})
+        check([d.get("blank", False) for d in e["displays"]] == [False, True], "screen 2 is marked off, screen 1 is not")
+        r = call("POST", "/api/endpoints/checkin", {"host": "wall-pc", "screens": [], "panels": []})
+        streams = [d.get("stream", "") for d in r["displays"]]
+        check(streams[1] == "blank" and streams[0].endswith("(Mosaic_Output_01)"), f"the PC is told to show black there and its stream on the other ({streams})")
+        call("POST", "/api/endpoints/checkin", {"host": "wall-pc", "screens": [], "panels": [
+            {"index": 1, "reachable": True, "playing": streams[0]}, {"index": 2, "reachable": True, "playing": "blank"}]})
+        ep = next(x for x in call("GET", "/api/control")["endpoints"] if x["id"] == "wall-pc")
+        check([s["blank"] for s in ep["screens"]] == [False, True] and ep["displaysBlank"] == 1 and not ep["blank"],
+              f"the control summary lists each screen and which is off ({ep['screens']})")
+        check(ep["displaysOk"] == 2, f"a screen showing black as asked counts as fine ({ep['displaysOk']} of 2)")
+        saved = next(x for x in call("GET", "/api/layout")["endpoints"] if x["id"] == "wall-pc")
+        check(saved["displays"][1].get("blank") is True, "it is saved with the layout (stays off through a restart)")
+        e = call("POST", "/api/endpoints/wall-pc/blank", {"on": True})
+        check(all(d.get("blank") for d in e["displays"]), "without a screen number, every screen of the PC goes off")
+        ep = next(x for x in call("GET", "/api/control")["endpoints"] if x["id"] == "wall-pc")
+        check(ep["blank"] and ep["displaysBlank"] == 2, "and the PC reads as off")
+        e = call("POST", "/api/endpoints/wall-pc/blank", {"on": False, "display": 1})
+        check([d.get("blank", False) for d in e["displays"]] == [False, True], "a screen number in the body works too: screen 1 back on")
+        e = call("POST", "/api/endpoints/wall-pc/blank", {"on": False})
+        r = call("POST", "/api/endpoints/checkin", {"host": "wall-pc", "screens": [], "panels": []})
+        check(not any(d.get("blank") for d in e["displays"]) and all(d["stream"].startswith("") and d["stream"] != "blank" for d in r["displays"]),
+              "all back on: both screens get their streams again")
+        def refused(path, body):
+            try:
+                call("POST", path, body)
+                return 0
+            except urllib.error.HTTPError as ex:
+                return ex.code
+        check(refused("/api/endpoints/wall-pc/displays/9/blank", {"on": True}) == 400, "a screen the PC doesn't have is refused")
+        check(refused("/api/endpoints/nobody/blank", {"on": True}) == 404, "and so is a PC that isn't set up")
+        check(refused("/api/endpoints/spare-pc/blank", {"on": True}) == 400, "and one that doesn't run the Mosaic Receiver")
+
         print("one stream across a 2x2 of screens:", flush=True)
         call("POST", "/api/endpoints", {"name": "Quad PC", "host": "quad-pc", "player": "mosaic",
                                         "displays": [{"output": "out-1", "part": {"cols": 2, "rows": 2, "index": k}} for k in (1, 2, 3, 4)]})

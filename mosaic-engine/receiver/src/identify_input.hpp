@@ -22,6 +22,7 @@ struct IdentifyOptions {
     std::string big;                 // the number, as large as fits
     std::vector<std::string> lines;  // smaller lines under it (up to four are shown)
     uint32_t colour = 0xFF1E3A8A;    // background, 0xAARRGGBB
+    bool plain = false;              // only the background: no frame, no text (a blanked screen)
 };
 
 // Backgrounds that are easy to tell apart from across a room, dark enough for white text.
@@ -39,6 +40,7 @@ inline std::vector<uint32_t> renderIdentify(const IdentifyOptions& o) {
         x0 = std::clamp(x0, 0, W), x1 = std::clamp(x1, 0, W), y0 = std::clamp(y0, 0, H), y1 = std::clamp(y1, 0, H);
         for (int y = y0; y < y1; ++y) std::fill(px.begin() + static_cast<std::ptrdiff_t>(y) * W + x0, px.begin() + static_cast<std::ptrdiff_t>(y) * W + x1, c);
     };
+    if (o.plain) return px;
     // A white frame right at the edges: if any side of it is missing on the screen, the window
     // doesn't fill that screen (or the screen overscans).
     const int b = std::max(2, std::min(W, H) / 90);
@@ -67,7 +69,7 @@ inline std::vector<uint32_t> renderIdentify(const IdentifyOptions& o) {
 // never waited for or counted late.
 class IdentifyInput : public FrameInput {
 public:
-    explicit IdentifyInput(const IdentifyOptions& o) {
+    explicit IdentifyInput(const IdentifyOptions& o) : status_(o.plain ? "blank" : "identify") {
         auto pixels = std::make_shared<std::vector<uint32_t>>(renderIdentify(o));
         RxFrame f;
         f.width = std::max(o.width, 64);
@@ -79,10 +81,11 @@ public:
         queue_.push(std::move(f));
     }
     StreamQueue& queue() override { return queue_; }
-    std::string status() const override { return "identify"; }
+    std::string status() const override { return status_; }
 
 private:
     StreamQueue queue_;
+    std::string status_;
 };
 
 }  // namespace mosaic::rx

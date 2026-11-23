@@ -156,6 +156,9 @@ struct EndpointDisplay {
     // pixels of the stream. That much of the picture is left out between cells, as if it were
     // hidden behind the bezels, so a line runs straight from one screen onto the next.
     int partGapX = 0, partGapY = 0;
+    // Switched off: the screen shows black instead of its output, and the PC and its other screens
+    // carry on (for a monitor that can't be powered down by itself). Mosaic Receiver only.
+    bool blank = false;
 };
 
 // A sound output of the media server: one NDI source's audio, played on one of the PC's sound

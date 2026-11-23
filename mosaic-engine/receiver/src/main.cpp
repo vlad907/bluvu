@@ -246,6 +246,27 @@ int selfTest(double seconds) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1500));
         json s6 = rx5.status();
         check(s6["displays"].size() == 1 && s6["displays"][0].value("framesShown", 0) > 30, "after identify the display plays its stream again");
+        // A screen switched off: black, while the other one keeps playing.
+        IdentifyOptions off;
+        off.width = off.height = 64;
+        off.colour = 0xFF000000;
+        off.plain = true;
+        auto dark = renderIdentify(off);
+        check(std::all_of(dark.begin(), dark.end(), [](uint32_t p) { return p == 0xFF000000; }), "a switched-off screen's picture is all black: no frame, no text");
+        json cfg7 = cfg6;
+        cfg7["displays"].push_back({{"index", 2}, {"stream", "blank"}, {"window", {{"x", 1920}, {"y", 0}, {"w", 1920}, {"h", 1080}}}});
+        ReceiverConfig c7;
+        from_json(cfg7, c7);
+        rx5.setConfig(c7);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+        json s7 = rx5.status();
+        bool two = s7["displays"].size() == 2;
+        check(two && s7["displays"][1].value("status", "") == "blank" && s7["displays"][1].value("framesShown", 0) == 1, "switching a screen off: it shows black, uploaded once");
+        check(two && s7["displays"][0].value("framesShown", 0) > 30, "and the PC's other screen keeps playing");
+        check(s7.value("freezesTotal", 99) == 0, "a switched-off screen isn't counted as a freeze");
+        rx5.setConfig(c6);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        check(rx5.status()["displays"].size() == 1, "switched back on, it's a stream again");
     }
     std::cout << (ok ? "SELF-TEST PASSED" : "SELF-TEST FAILED") << "\n";
     return ok ? 0 : 1;

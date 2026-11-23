@@ -428,6 +428,12 @@ struct HttpApi::Impl {
             } else {
                 j["error"] = d.output.empty() ? "no output assigned" : "no such output '" + d.output + "'";
             }
+            if (d.blank) {
+                // Switched off: the receiver shows black there instead of the stream.
+                j["blank"] = true;
+                if (e.player == "mosaic") j["stream"] = "blank";
+                else j["error"] = "switching a screen off needs the Mosaic Receiver as the player";
+            }
             out.push_back(j);
         }
         return out;
@@ -1247,6 +1253,41 @@ struct HttpApi::Impl {
                 }
             sendError(res, 404, "no such endpoint");
         }));
+        // Blank: {on: true} switches a PC's screens off (they show black; the PC, its other screens
+        // and the streams carry on), {on: false} back on. With "display": N (1 = its first screen)
+        // only that screen; without it, all of them. For a monitor that can't be powered down by
+        // itself. It stays as set through restarts. Mosaic Receiver only.
+        auto blankScreens = [this](const std::string& id, int display, const json& body, httplib::Response& res) {
+            bool on = body.value("on", true);
+            std::string problem;
+            bool ok = store.mutateActive([&](Layout& l) {
+                for (auto& e : l.endpoints) {
+                    if (e.id != id) continue;
+                    if (on && e.player != "mosaic") return problem = "switching a screen off needs the Mosaic Receiver as the player", false;
+                    if (display > static_cast<int>(e.displays.size()))
+                        return problem = e.name + " has " + std::to_string(e.displays.size()) + " screen(s): no screen " + std::to_string(display), false;
+                    for (int i = 0; i < static_cast<int>(e.displays.size()); ++i)
+                        if (display <= 0 || i == display - 1) e.displays[static_cast<size_t>(i)].blank = on;
+                    return true;
+                }
+                problem = "no such endpoint";
+                return false;
+            });
+            if (!ok) return sendError(res, problem == "no such endpoint" ? 404 : 400, problem.empty() ? "no such endpoint" : problem);
+            auto l = store.active();
+            for (auto& e : l->endpoints)
+                if (e.id == id) return sendJson(res, endpointView(*l, e, eng().discoveredNdiSources()));
+            sendError(res, 404, "no such endpoint");
+        };
+        s.Post(R"(/api/endpoints/([A-Za-z0-9_\-]+)/blank)", guard([blankScreens](const httplib::Request& req, httplib::Response& res) {
+            json body = parseBody(req);
+            blankScreens(req.matches[1], body.value("display", 0), body, res);
+        }));
+        s.Post(R"(/api/endpoints/([A-Za-z0-9_\-]+)/displays/([0-9]{1,3})/blank)", guard([blankScreens](const httplib::Request& req, httplib::Response& res) {
+            int n = std::stoi(req.matches[2]);
+            if (n < 1) return sendError(res, 400, "screens are numbered from 1");
+            blankScreens(req.matches[1], n, parseBody(req), res);
+        }));
         s.Delete(R"(/api/endpoints/([A-Za-z0-9_\-]+))", guard([this](const httplib::Request& req, httplib::Response& res) {
             std::string id = req.matches[1];
             bool ok = store.mutateActive([&](Layout& l) {
@@ -1491,6 +1532,17 @@ struct HttpApi::Impl {
                 int ok = 0;
                 for (auto& d : v["displays"]) ok += d.value("ok", false) ? 1 : 0;
                 json ep = {{"id", e.id}, {"name", e.name}, {"player", e.player}, {"online", v["online"]}, {"displays", e.displays.size()}, {"displaysOk", ok}};
+                // Each screen and whether it's switched off (POST /api/endpoints/:id/displays/:n/blank).
+                json screens = json::array();
+                int blanked = 0;
+                for (auto& d : v["displays"]) {
+                    bool blank = d.value("blank", false);
+                    blanked += blank ? 1 : 0;
+                    screens.push_back({{"display", d.value("index", 0)}, {"name", d.value("label", "")}, {"output", d.value("output", "")}, {"blank", blank}, {"ok", d.value("ok", false)}});
+                }
+                ep["screens"] = screens;
+                ep["displaysBlank"] = blanked;
+                ep["blank"] = !e.displays.empty() && blanked == static_cast<int>(e.displays.size());
                 if (v.contains("receiver")) {
                     ep["syncSpreadFrames"] = v["receiver"]["spreadMax10s"];
                     ep["screenSpreadMaxMs"] = v["receiver"]["screenSpreadMaxMs"];

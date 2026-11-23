@@ -261,11 +261,13 @@ void to_json(json& j, const EndpointDisplay& d) {
         if (d.partGapX) j["part"]["gapX"] = d.partGapX;
         if (d.partGapY) j["part"]["gapY"] = d.partGapY;
     }
+    if (d.blank) j["blank"] = true;
 }
 
 void from_json(const json& j, EndpointDisplay& d) {
     d.screen = j.value("screen", d.screen);
     d.output = j.value("output", d.output);
+    d.blank = j.value("blank", false);
     d.partCols = d.partRows = 1;
     d.part = 0;
     d.partGapX = d.partGapY = 0;

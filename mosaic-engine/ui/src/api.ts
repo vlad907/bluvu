@@ -224,6 +224,7 @@ export interface EndpointDisplay {
   // gapX / gapY: bezel correction, the gap between neighbouring pictures in pixels of the stream;
   // that much of the picture is left out between the cells.
   part?: { cols: number; rows: number; index: number; gapX?: number; gapY?: number };
+  blank?: boolean; // switched off: the screen shows black; the PC and its other screens carry on. Mosaic Receiver only.
 }
 
 export interface Endpoint {
@@ -606,6 +607,7 @@ export const api = {
   putEndpoint: (id: string, e: Partial<Endpoint>) => call<EndpointView>("PUT", `/api/endpoints/${id}`, e),
   deleteEndpoint: (id: string) => call("DELETE", `/api/endpoints/${id}`),
   identifyEndpoint: (id: string, on: boolean) => call<EndpointView>("POST", `/api/endpoints/${id}/identify`, { on }),
+  blankEndpointDisplay: (id: string, display: number, on: boolean) => call<EndpointView>("POST", `/api/endpoints/${id}/displays/${display}/blank`, { on }),
   saveScene: (name: string) => call<Scene>("POST", "/api/scenes", { name }),
   recallScene: (id: string, transitionMs: number) => call("POST", `/api/scenes/${id}/recall`, { transitionMs }),
   deleteScene: (id: string) => call("DELETE", `/api/scenes/${id}`),
