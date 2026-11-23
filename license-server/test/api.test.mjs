@@ -44,6 +44,12 @@ before(async () => {
 });
 
 after(() => {
+  // On Windows wrangler runs under a shell and its workerd child outlives a plain kill.
+  if (process.platform === "win32" && server?.pid) {
+    try {
+      execFileSync("taskkill", ["/F", "/T", "/PID", String(server.pid)], { stdio: "ignore" });
+    } catch {}
+  }
   server?.kill();
   try {
     rmSync(dir, { recursive: true, force: true });

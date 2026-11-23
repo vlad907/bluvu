@@ -90,7 +90,7 @@ if not os.path.exists(npm_bin):
     print("  (license-server/node_modules missing: run npm ci there; skipped)")
     sys.exit(0)
 
-with tempfile.TemporaryDirectory() as tmp:
+with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
     vars_file = os.path.join(tmp, "test.vars")
     open(vars_file, "w").write(f"SIGNING_SEED={SEED}\nSIGNING_KID=test\nADMIN_TOKEN={ADMIN}\n")
     persist = os.path.join(tmp, "state")
@@ -177,14 +177,15 @@ with tempfile.TemporaryDirectory() as tmp:
         for p in procs:
             if p.poll() is None:
                 p.kill()
+        if os.name == "nt":  # kill the whole tree first: wrangler's children (workerd) outlive it on Windows
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(server.pid)], capture_output=True)
         server.terminate()
         try:
             server.wait(timeout=20)
         except subprocess.TimeoutExpired:
             server.kill()
-        if os.name == "nt":  # wrangler's children (workerd) outlive it on Windows
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(server.pid)], capture_output=True)
         slog.close()
+        time.sleep(1)
 
 print(f"\n{'LICENSE SERVER CHECKS FAILED: ' + str(len(failures)) if failures else 'LICENSE SERVER CHECKS PASSED'}")
 sys.exit(1 if failures else 0)
