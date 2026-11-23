@@ -1,6 +1,6 @@
 {
   "id": "inside-bar",
-  "name": "Inside bar - 2x2 of 98\" with 40\" and 24\" side screens",
+  "name": "Inside bar - 2x2 of 98\" with 43\" and 24\" side screens",
   "frameRate": 30,
   "ndiPrefix": "Inside_Bar",
   "canvas": {
@@ -67,44 +67,44 @@
       "id": "left-tilted-top",
       "name": "Left tilted top",
       "ndiName": "Inside_Bar_02",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 0,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "angle": -45,
       "crop": {
-        "x": 777,
-        "y": 623,
-        "w": 784,
-        "h": 441
+        "x": 748,
+        "y": 606,
+        "w": 842,
+        "h": 474
       }
     },
     {
       "id": "left-tilted-outer",
       "name": "Left tilted outer",
       "ndiName": "Inside_Bar_03",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 0,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "angle": -45,
       "crop": {
-        "x": 118,
-        "y": 1396,
-        "w": 784,
-        "h": 441
+        "x": 89,
+        "y": 1379,
+        "w": 842,
+        "h": 474
       }
     },
     {
       "id": "left-small-tilted",
       "name": "Left small tilted",
       "ndiName": "Inside_Bar_04",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 0,
       "scaleMode": "stretch",
       "source": "canvas",
@@ -121,78 +121,78 @@
       "id": "left-portrait-top",
       "name": "Left portrait top",
       "ndiName": "Inside_Bar_05",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 90,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "crop": {
-        "x": 1137,
-        "y": 1424,
-        "w": 441,
-        "h": 784
+        "x": 1121,
+        "y": 1395,
+        "w": 474,
+        "h": 842
       }
     },
     {
       "id": "left-portrait-bottom",
       "name": "Left portrait bottom",
       "ndiName": "Inside_Bar_06",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 90,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "crop": {
-        "x": 1137,
-        "y": 2387,
-        "w": 441,
-        "h": 784
+        "x": 1121,
+        "y": 2348,
+        "w": 474,
+        "h": 842
       }
     },
     {
       "id": "right-tilted-top",
       "name": "Right tilted top",
       "ndiName": "Inside_Bar_07",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 0,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "angle": 45,
       "crop": {
-        "x": 5700,
-        "y": 623,
-        "w": 784,
-        "h": 441
+        "x": 5670,
+        "y": 606,
+        "w": 842,
+        "h": 474
       }
     },
     {
       "id": "right-tilted-outer",
       "name": "Right tilted outer",
       "ndiName": "Inside_Bar_08",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 0,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "angle": 45,
       "crop": {
-        "x": 6359,
-        "y": 1396,
-        "w": 784,
-        "h": 441
+        "x": 6329,
+        "y": 1379,
+        "w": 842,
+        "h": 474
       }
     },
     {
       "id": "right-small-tilted",
       "name": "Right small tilted",
       "ndiName": "Inside_Bar_09",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 0,
       "scaleMode": "stretch",
       "source": "canvas",
@@ -209,34 +209,34 @@
       "id": "right-portrait-top",
       "name": "Right portrait top",
       "ndiName": "Inside_Bar_10",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 90,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "crop": {
-        "x": 5682,
-        "y": 1424,
-        "w": 441,
-        "h": 784
+        "x": 5666,
+        "y": 1395,
+        "w": 474,
+        "h": 842
       }
     },
     {
       "id": "right-portrait-bottom",
       "name": "Right portrait bottom",
       "ndiName": "Inside_Bar_11",
-      "width": 1280,
-      "height": 720,
+      "width": 1920,
+      "height": 1080,
       "rotation": 90,
       "scaleMode": "stretch",
       "source": "canvas",
       "enabled": true,
       "crop": {
-        "x": 5682,
-        "y": 2387,
-        "w": 441,
-        "h": 784
+        "x": 5666,
+        "y": 2348,
+        "w": 474,
+        "h": 842
       }
     }
   ]

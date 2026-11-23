@@ -2,8 +2,8 @@
 """Generates layouts/inside-bar.json: the inside bar wall, from its measurements.
 
 The wall is 26 ft 11 in wide and 11 ft 10 in from the bottom of the lowest TV to the ceiling.
-Centre: a 2 x 2 of 98" 4K panels, sent as one stream that its receiving PC splits. Each side (mirrored): two 40" TVs mounted upright (portrait)
-next to the centre, two 40" TVs tilted 45 degrees, and a 24" tilted 45 degrees.
+Centre: a 2 x 2 of 98" 4K panels, sent as one stream that its receiving PC splits. Each side (mirrored): two 43" 4K TVs mounted upright (portrait)
+next to the centre, two 43" 4K TVs tilted 45 degrees, and a 24" 1080p monitor tilted 45 degrees.
 
 Everything is placed in inches (x from the wall's left edge, y down from the ceiling, positions
 read off the photo of the cardboard templates) and turned into canvas pixels at PX_PER_INCH, so
@@ -23,7 +23,7 @@ def tv(diagonal):
 
 
 BIG_W, BIG_H = tv(98)   # 85.4 x 48.0
-MID_W, MID_H = tv(40)   # 34.9 x 19.6
+MID_W, MID_H = tv(43)   # 37.5 x 21.1 (the TVs report 43" and 3840 x 2160)
 SMALL_W, SMALL_H = tv(24)  # 20.9 x 11.8
 
 # One centre panel is 1920 canvas pixels wide: a 1080p source on one panel, or a 4K one across
@@ -31,16 +31,22 @@ SMALL_W, SMALL_H = tv(24)  # 20.9 x 11.8
 # the rendering and streaming load.)
 PX_PER_INCH = 1920 / BIG_W
 
+# What each side screen is sent. Its part of the canvas is far smaller than this (843 x 474 for a
+# 43"), so this adds no detail: it keeps the enlargement in one place (the engine) instead of a
+# second one in the TV, and leaves room for content made per screen. 4K each would be too much
+# for a receiving PC's gigabit link.
+SIDE_W, SIDE_H = 1920, 1080
+
 CENTRE_X = (WALL_W - 2 * BIG_W) / 2  # centred on the wall
 CENTRE_Y = 36.7                      # top of the 2 x 2 below the ceiling
 
 # The left side: (name, centre x, centre y, kind). The right side mirrors it.
 LEFT = [
-    ("tilted top", 52.0, 37.5, "tilt40"),
-    ("tilted outer", 22.7, 71.9, "tilt40"),
+    ("tilted top", 52.0, 37.5, "tilt43"),
+    ("tilted outer", 22.7, 71.9, "tilt43"),
     ("small tilted", 31.1, 95.8, "tilt24"),
-    ("portrait top", 60.4, 80.8, "portrait40"),
-    ("portrait bottom", 60.4, 123.6, "portrait40"),
+    ("portrait top", 60.4, 80.8, "portrait43"),
+    ("portrait bottom", 60.4, 123.2, "portrait43"),  # its bottom edge is the bottom of the wall
 ]
 TILT = 45  # degrees; the left side leans counter-clockwise (long edge rising to the right)
 
@@ -51,9 +57,9 @@ def px(inches):
 
 def output(oid, name, n, cx, cy, kind, side):
     w, h = (SMALL_W, SMALL_H) if kind == "tilt24" else (MID_W, MID_H)
-    o = {"id": oid, "name": name, "ndiName": f"Inside_Bar_{n:02d}", "width": 1280, "height": 720,
+    o = {"id": oid, "name": name, "ndiName": f"Inside_Bar_{n:02d}", "width": SIDE_W, "height": SIDE_H,
          "rotation": 0, "scaleMode": "stretch", "source": "canvas", "enabled": True}
-    if kind == "portrait40":
+    if kind == "portrait43":
         w, h = h, w
         o["rotation"] = 90  # mounted on its side; 270 if the picture comes out upside down
     else:
@@ -79,7 +85,7 @@ def main():
             x = cx if side == "left" else WALL_W - cx
             outputs.append(output(f"{side}-{name.replace(' ', '-')}", f"{side.capitalize()} {name}", n, x, cy, kind, side))
     layout = {
-        "id": "inside-bar", "name": "Inside bar - 2x2 of 98\" with 40\" and 24\" side screens", "frameRate": 30, "ndiPrefix": "Inside_Bar",
+        "id": "inside-bar", "name": "Inside bar - 2x2 of 98\" with 43\" and 24\" side screens", "frameRate": 30, "ndiPrefix": "Inside_Bar",
         "canvas": {"width": canvas_w, "height": canvas_h, "background": [0, 0, 0, 1]},
         "sources": [{"id": "pattern", "name": "Test pattern", "type": "test_pattern", "rect": {"x": 0, "y": 0, "w": canvas_w, "h": canvas_h}, "enabled": True}],
         "walls": [{"id": "centre", "name": "Centre 2x2", "cols": 1, "rows": 1, "outputWidth": 3840, "outputHeight": 2160, "rotation": 0,
