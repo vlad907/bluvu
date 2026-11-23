@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bluvu: video wall control from one browser tab</title>
+  <meta name="description" content="Bluvu turns one media server into the brain of every screen in the room. Map tilted and portrait screens, layer NDI, video and capture sources, keep the screens in step, and switch what's on from a phone, a Stream Deck or your control system.">
+  <meta property="og:title" content="Bluvu: video wall control from one browser tab">
+  <meta property="og:description" content="Map any screen layout, layer any source, and switch it all from one place.">
+  <meta property="og:image" content="media/og-image.jpg">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b0d12">
+  <link rel="icon" href="media/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav" id="top">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Bluvu home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span class="brand-word">bluvu</span>
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#control">Control</a>
+      <a href="#venues">Venues</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="#demo">Book a demo</a>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false"><span></span><span></span></button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Video wall software for NDI</p>
+        <h1>Every screen in the room,<br><span class="grad">from one browser tab.</span></h1>
+        <p class="lede">Bluvu turns one media server into the brain of every screen you own. Lay out the wall the way it really hangs, put any source on it, and switch what's showing from a phone, a Stream Deck or your control system.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#demo">Book a demo</a>
+          <a class="btn btn-ghost" href="#features"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>See it work</a>
+        </div>
+        <ul class="hero-points">
+          <li>Runs on Windows PCs you already have</li>
+          <li>No proprietary processor box</li>
+          <li>Set up in the browser, not in a config file</li>
+        </ul>
+        <p class="byline">Brought to you by <a href="#about" data-slot="bluearc-link">Blue Arc Networks</a></p>
+      </div>
+      <div class="hero-media">
+        <figure class="slot slot-hero" data-slot="hero-loop" data-kind="video"
+                data-src="media/hero-loop.mp4" data-poster="media/hero-poster.jpg"
+                data-label="Hero loop: a real wall running, 10–20 s">
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= COMPAT STRIP ================= -->
+  <section class="strip" aria-label="Works with">
+    <div class="wrap strip-inner">
+      <span class="strip-label">Works with</span>
+      <ul>
+        <li>NDI&reg; 6</li>
+        <li>Capture cards</li>
+        <li>MP4 / MOV up to 8K</li>
+        <li>Bitfocus Companion</li>
+        <li>Crestron</li>
+        <li>Q-SYS</li>
+        <li>AMX</li>
+        <li>Any HTTP client</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= PROBLEM / PROMISE ================= -->
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Why Bluvu</p>
+        <h2>Video walls shouldn't need a rack of hardware and an integrator on speed dial.</h2>
+      </div>
+      <div class="three">
+        <article class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M3 5h18v11H3zM8 20h8M12 16v4" /></svg></div>
+          <h3>Software, not a box</h3>
+          <p>Bluvu runs on an ordinary Windows PC with a GPU. Screens are driven by the media server's own outputs or by small receiving PCs over the network.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" /></svg></div>
+          <h3>Any shape of wall</h3>
+          <p>Grids, single screens, portrait panels, screens hung at an angle. Draw the room as it is, and Bluvu cuts the picture to match.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /><circle cx="12" cy="12" r="3"/></svg></div>
+          <h3>Runs by itself</h3>
+          <p>Starts at boot, restarts what stops, remembers every monitor and updates every PC from one button. Staff just pick what's on.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FEATURES ================= -->
+  <section class="section section-alt" id="features">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Features</p>
+        <h2>Built for the people who run the room.</h2>
+        <p class="sub">Everything below is done in the Bluvu editor, in a web browser, while the wall is live.</p>
+      </div>
+
+      <!-- Feature 1 -->
+      <div class="feature">
+        <div class="feature-copy">
+          <span class="feature-num">01</span>
+          <h3>Map the room, not a grid</h3>
+          <p>Place each screen exactly where it hangs: any position, any gap, any tilt. Portrait panels, screens mounted upside down, odd sizes beside a big centre wall. Bezel gaps go in as pixels or millimetres, so straight lines stay straight across the frames.</p>
+          <ul class="ticks">
+            <li>Wall tool builds a grid with bezel correction in seconds</li>
+            <li>Free tilt angle per screen, with a rotate handle and <kbd>[</kbd> <kbd>]</kbd> keys</li>
+            <li>Several walls and single displays in one layout</li>
+          </ul>
+        </div>
+        <div class="feature-media pip">
+          <figure class="slot" data-slot="freeform-editor" data-kind="image" data-src="media/freeform-editor.jpg"
+                  data-label="Screenshot: the wall in the editor"></figure>
+          <figure class="slot inset" data-slot="freeform-photo" data-kind="image" data-src="media/freeform-photo.jpg"
+                  data-label="Photo: the same screens in the venue"></figure>
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature reverse">
+        <div class="feature-copy">
+          <span class="feature-num">02</span>
+          <h3>An editor you already know how to use</h3>
+          <p>Drag a region to move it, pull a corner to resize it. Frames snap to each other's edges and centres. Every output has a live preview, so you see what each screen is showing without walking to it.</p>
+          <ul class="ticks">
+            <li>Layer list: drag to reorder, bring to front, send to back</li>
+            <li>Inspector for exact crop, scale and rotation</li>
+            <li>The last 50 versions of every layout, one click to restore</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <figure class="slot" data-slot="editor-drag" data-kind="video" data-src="media/editor-drag.mp4"
+                  data-poster="media/editor-drag.jpg" data-label="Screen recording: drag, resize, snap, rotate"></figure>
+        </div>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature">
+        <div class="feature-copy">
+          <span class="feature-num">03</span>
+          <h3>Any source, layered</h3>
+          <p>Mix NDI streams, capture cards, video files, images and solid colour on one canvas. Stack them with opacity and crop, save the look as a scene, and crossfade between scenes.</p>
+          <ul class="ticks">
+            <li>MP4 and MOV (H.264, HEVC, AV1) up to 8K, with loop, pause and restart</li>
+            <li>A fallback image per wall when a signal drops</li>
+            <li>Name tags on layers, to tell inputs apart on the glass</li>
+            <li>Colour correction per output</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <figure class="slot" data-slot="sources-layers" data-kind="video" data-src="media/sources-layers.mp4"
+                  data-poster="media/sources-layers.jpg" data-label="Screen recording: layering sources, scene crossfade"></figure>
+        </div>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="feature reverse">
+        <div class="feature-copy">
+          <span class="feature-num">04</span>
+          <h3>Screens that set themselves up</h3>
+          <p>Install Bluvu on a receiving PC and point it at the media server. It shows up in the editor with its screens listed. Click <em>Set up</em>, pick what each screen shows, and within seconds it's playing full screen.</p>
+          <ul class="ticks">
+            <li>Online and playing status for every PC and every screen</li>
+            <li>The player installs and updates itself on each PC</li>
+            <li>Swap a dead PC for one with the same name and it picks up the same setup</li>
+            <li>Keeps showing the last picture if the media server goes away</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <figure class="slot" data-slot="endpoints" data-kind="image" data-src="media/endpoints.jpg"
+                  data-label="Screenshot: Endpoints panel, PCs online, screens playing"></figure>
+        </div>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="feature">
+        <div class="feature-copy">
+          <span class="feature-num">05</span>
+          <h3>In step, and it shows you</h3>
+          <p>Every screen's picture is rendered from the same frame, in one GPU pass. The Bluvu player shows those frames in step across a PC's screens, and lines up several PCs with a shared buffer. The editor reports how far apart the screens really are, instead of leaving you to guess.</p>
+          <ul class="ticks">
+            <li>One stream split across a 2×2 on one PC, always the same frame</li>
+            <li>A delay for screens cabled straight to the server, to match the network walls</li>
+            <li>Built-in frame-counter test pattern to check sync with a phone camera</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <figure class="slot" data-slot="sync-slowmo" data-kind="video" data-src="media/sync-slowmo.mp4"
+                  data-poster="media/sync-slowmo.jpg" data-label="Slow-motion phone video: test pattern across the wall"></figure>
+        </div>
+      </div>
+
+      <!-- Feature 6 -->
+      <div class="feature reverse">
+        <div class="feature-copy">
+          <span class="feature-num">06</span>
+          <h3>Sound that follows the picture</h3>
+          <p>Send the audio of any stream or sound input to the media server's sound devices: bar speakers, the patio, the back room. Each zone gets its own source, volume and mute, delayed to match the screens.</p>
+          <ul class="ticks">
+            <li>Per-zone source, volume, mute</li>
+            <li>Mono on one output of a device</li>
+            <li>Controlled by the same API as the video</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <figure class="slot" data-slot="audio" data-kind="image" data-src="media/audio.png"
+                  data-label="Screenshot: Audio panel with zones"></figure>
+        </div>
+      </div>
+
+      <!-- Feature 7 -->
+      <div class="feature">
+        <div class="feature-copy">
+          <span class="feature-num">07</span>
+          <h3>Built to run unattended</h3>
+          <p>Bluvu is made for screens nobody is watching the back of. It starts hidden at boot, waits for the network, and restarts anything that stops. If a graphics driver resets, only that wall pauses, and it comes back on its own.</p>
+          <ul class="ticks">
+            <li>Each screen remembers its monitor, even when Windows renumbers them</li>
+            <li><em>Update everything</em> updates every PC from the editor</li>
+            <li>Optional PIN for the editor and key for the API</li>
+            <li>Switch one screen off (black) while its PC stays on</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <figure class="slot" data-slot="updates" data-kind="image" data-src="media/updates.jpg"
+                  data-label="Screenshot: Settings → Updates, every PC's version"></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HOW IT WORKS ================= -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">How it works</p>
+        <h2>One canvas in. Every screen out.</h2>
+        <p class="sub">Sources land on a virtual canvas on the media server. Bluvu cuts each screen's piece out of that canvas and sends it on: over the network to a receiving PC, or straight out of the server's own graphics card.</p>
+      </div>
+
+      <div class="diagram" role="img" aria-label="Diagram: sources feed the Bluvu media server, which sends each screen's picture over NDI to receiving PCs or directly to monitors on its GPU.">
+        <svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0L10 5L0 10z" fill="var(--accent)"/>
+            </marker>
+          </defs>
+          <!-- sources -->
+          <g class="d-col">
+            <text x="90" y="34" class="d-head">Sources</text>
+            <g transform="translate(20,56)"><rect class="d-box" width="140" height="44" rx="8"/><text x="70" y="27" class="d-txt">NDI cameras &amp; PCs</text></g>
+            <g transform="translate(20,116)"><rect class="d-box" width="140" height="44" rx="8"/><text x="70" y="27" class="d-txt">Capture cards</text></g>
+            <g transform="translate(20,176)"><rect class="d-box" width="140" height="44" rx="8"/><text x="70" y="27" class="d-txt">Video files, 8K</text></g>
+            <g transform="translate(20,236)"><rect class="d-box" width="140" height="44" rx="8"/><text x="70" y="27" class="d-txt">Images &amp; colour</text></g>
+            <g transform="translate(20,296)"><rect class="d-box" width="140" height="44" rx="8"/><text x="70" y="27" class="d-txt">Sound inputs</text></g>
+          </g>
+          <path class="d-line" d="M160 78 C 230 78, 230 200, 290 200" marker-end="url(#arw)"/>
+          <path class="d-line" d="M160 138 C 230 138, 230 200, 290 200"/>
+          <path class="d-line" d="M160 198 L 290 200"/>
+          <path class="d-line" d="M160 258 C 230 258, 230 200, 290 200"/>
+          <path class="d-line" d="M160 318 C 230 318, 230 200, 290 200"/>
+
+          <!-- server -->
+          <g transform="translate(295,90)">
+            <rect class="d-server" width="300" height="230" rx="14"/>
+            <text x="150" y="34" class="d-head">Bluvu media server</text>
+            <rect class="d-canvas" x="24" y="52" width="252" height="110" rx="6"/>
+            <rect class="d-cut" x="34" y="62" width="76" height="42" rx="2"/>
+            <rect class="d-cut" x="114" y="62" width="76" height="42" rx="2"/>
+            <rect class="d-cut" x="34" y="108" width="76" height="42" rx="2"/>
+            <rect class="d-cut" x="114" y="108" width="76" height="42" rx="2"/>
+            <rect class="d-cut" x="206" y="70" width="56" height="34" rx="2" transform="rotate(-8 234 87)"/>
+            <rect class="d-cut" x="214" y="112" width="34" height="44" rx="2"/>
+            <text x="150" y="186" class="d-small">Canvas, cut into screens</text>
+            <text x="150" y="208" class="d-small d-faint">editor · REST API · audio</text>
+          </g>
+
+          <!-- outputs -->
+          <path class="d-line" d="M595 160 C 660 160, 660 90, 720 90" marker-end="url(#arw)"/>
+          <path class="d-line" d="M595 205 L 720 205" marker-end="url(#arw)"/>
+          <path class="d-line" d="M595 250 C 660 250, 660 320, 720 320" marker-end="url(#arw)"/>
+          <text x="655" y="118" class="d-tag">NDI</text>
+          <text x="655" y="196" class="d-tag">NDI</text>
+          <text x="655" y="300" class="d-tag">HDMI / DP</text>
+
+          <g transform="translate(725,52)">
+            <rect class="d-box" width="255" height="76" rx="8"/>
+            <text x="16" y="28" class="d-txt-l">Receiving PC</text>
+            <text x="16" y="50" class="d-small-l">a 2×2 wall from one stream</text>
+            <g transform="translate(190,14)"><rect class="d-scr" width="24" height="22"/><rect class="d-scr" x="26" width="24" height="22"/><rect class="d-scr" y="24" width="24" height="22"/><rect class="d-scr" x="26" y="24" width="24" height="22"/></g>
+          </g>
+          <g transform="translate(725,167)">
+            <rect class="d-box" width="255" height="76" rx="8"/>
+            <text x="16" y="28" class="d-txt-l">Receiving PCs</text>
+            <text x="16" y="50" class="d-small-l">single, portrait, tilted screens</text>
+            <g transform="translate(190,16)"><rect class="d-scr" width="20" height="40"/><rect class="d-scr" x="26" y="6" width="34" height="22" transform="rotate(-10 43 17)"/></g>
+          </g>
+          <g transform="translate(725,282)">
+            <rect class="d-box" width="255" height="76" rx="8"/>
+            <text x="16" y="28" class="d-txt-l">Direct to monitors</text>
+            <text x="16" y="50" class="d-small-l">from the server's own GPU</text>
+            <g transform="translate(186,20)"><rect class="d-scr" width="56" height="32"/></g>
+          </g>
+        </svg>
+      </div>
+
+      <ol class="steps">
+        <li><b>Install</b> on the media server and on each receiving PC. One double-click each.</li>
+        <li><b>Draw</b> your walls in the editor, or build a grid with the wall tool.</li>
+        <li><b>Assign</b> each receiving PC's screens as they check in.</li>
+        <li><b>Save presets</b> and hand staff a Stream Deck, a tablet or your control system.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================= CONTROL ================= -->
+  <section class="section section-alt" id="control">
+    <div class="wrap control-grid">
+      <div>
+        <p class="eyebrow">Control</p>
+        <h2>Staff press a button. The wall changes.</h2>
+        <p class="sub">Save a preset per wall (the big game full screen, four games in quarters, the menu board) and recall it from anything that can send a web request. No login dance, no drivers, no plug-in to buy.</p>
+        <ul class="ticks">
+          <li>Presets, scenes, playlists and arrangements per wall</li>
+          <li>"Show this stream on that wall" in a single request</li>
+          <li>Sound zones: source, volume, mute</li>
+          <li>Live status and stream thumbnails for touch panels</li>
+        </ul>
+        <figure class="slot slot-small" data-slot="control-hardware" data-kind="image" data-src="media/control-hardware.jpg"
+                data-label="Photo: Stream Deck / touch panel in use behind the bar"></figure>
+      </div>
+      <div class="code-card">
+        <div class="code-tabs" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="preset">Recall a preset</button>
+          <button role="tab" aria-selected="false" data-tab="show">Show a stream</button>
+          <button role="tab" aria-selected="false" data-tab="status">Read status</button>
+        </div>
+<pre class="code" data-pane="preset"><code><span class="c"># Big game, full wall, half-second fade</span>
+curl -X POST http://media-server:8090/api/walls/main-wall/presets/game-full/recall \
+  -H "Content-Type: application/json" \
+  -d '{"transitionMs": 500}'</code></pre>
+<pre class="code" data-pane="show" hidden><code><span class="c"># Put the slides PC on the double-wide</span>
+curl -X POST http://media-server:8090/api/walls/double-wide/show \
+  -H "Content-Type: application/json" \
+  -d '{"ndiName": "GFX-PC (Slides)", "transitionMs": 500}'</code></pre>
+<pre class="code" data-pane="status" hidden><code><span class="c"># Every wall, its presets, and what's on now</span>
+curl http://media-server:8090/api/control</code></pre>
+        <p class="code-foot">Plain HTTP and JSON. Bitfocus Companion, Crestron, Q-SYS and AMX can all send these.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SPECS ================= -->
+  <section class="section" id="specs">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Under the hood</p>
+        <h2>The specs integrators ask about.</h2>
+      </div>
+      <dl class="specs">
+        <div><dt>Platform</dt><dd>Windows 10 / 11, Direct3D 11. Any recent GPU.</dd></div>
+        <div><dt>Network video</dt><dd>NDI 6 in and out, one connection per stream shared by every wall</dd></div>
+        <div><dt>Output format</dt><dd>UYVY 4:2:2 (BT.709) made on the GPU, or BGRA</dd></div>
+        <div><dt>Canvases</dt><dd>Several independent walls at once, each on the GPU you choose</dd></div>
+        <div><dt>Direct outputs</dt><dd>Full screen on the server's monitors, own resolution and refresh, 0–1000 ms delay</dd></div>
+        <div><dt>Video files</dt><dd>MP4 / MOV, H.264, HEVC, AV1, up to 8K</dd></div>
+        <div><dt>Other sources</dt><dd>Capture cards, PNG / JPEG / GIF with transparency, solid colour, test pattern</dd></div>
+        <div><dt>Control</dt><dd>REST API with live events, optional API key and editor PIN</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ================= VENUES ================= -->
+  <section class="section section-alt" id="venues">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">In the wild</p>
+        <h2>Running on real walls, every night.</h2>
+      </div>
+
+      <figure class="quote">
+        <blockquote data-slot="testimonial-1">“Add a quote from the venue here: what changed for the staff, in their words.”</blockquote>
+        <figcaption><span class="q-name">Name, Role</span><span class="q-org">Venue, City</span></figcaption>
+      </figure>
+
+      <div class="gallery">
+        <figure class="slot" data-slot="gallery-1" data-kind="image" data-src="media/gallery-1.jpg" data-label="Venue: wide shot of the main wall"></figure>
+        <figure class="slot" data-slot="gallery-2" data-kind="image" data-src="media/gallery-2.jpg" data-label="Venue: crowd watching a game"></figure>
+        <figure class="slot" data-slot="gallery-3" data-kind="image" data-src="media/gallery-3.jpg" data-label="Venue: tilted side screens"></figure>
+        <figure class="slot" data-slot="gallery-4" data-kind="image" data-src="media/gallery-4.jpg" data-label="Detail: tight bezel line"></figure>
+        <figure class="slot" data-slot="gallery-5" data-kind="image" data-src="media/gallery-5.jpg" data-label="Hardware: media server / rack"></figure>
+        <figure class="slot" data-slot="gallery-6" data-kind="image" data-src="media/gallery-6.jpg" data-label="The editor on a laptop at the bar"></figure>
+      </div>
+
+      <div class="uses">
+        <article><h3>Sports bars &amp; restaurants</h3><p>Every game on the right screen, the sound in the right zone, switched from behind the bar.</p></article>
+        <article><h3>Houses of worship</h3><p>Lyrics, cameras and slides across mixed screens, run by volunteers.</p></article>
+        <article><h3>Lobbies &amp; retail</h3><p>Odd-shaped feature walls and signage that play by themselves all day.</p></article>
+        <article><h3>Events &amp; control rooms</h3><p>Fast layout changes, live previews and a status page you can trust.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section class="section" id="faq">
+    <div class="wrap narrow">
+      <div class="section-head center">
+        <p class="eyebrow">FAQ</p>
+        <h2>Questions we get.</h2>
+      </div>
+      <details>
+        <summary>What hardware do I need?</summary>
+        <p>One Windows PC with a GPU as the media server. Screens connect either directly to that PC's graphics outputs, or to small receiving PCs on the same network. Bluvu doesn't need a dedicated video-wall processor.</p>
+      </details>
+      <details>
+        <summary>Do I need NDI?</summary>
+        <p>For screens on receiving PCs, yes: Bluvu sends each screen's picture as an NDI stream. Screens cabled straight to the media server don't use the network at all. Sources can be NDI, capture cards, video files or images.</p>
+      </details>
+      <details>
+        <summary>Will the screens be in sync?</summary>
+        <p>Every screen is rendered from the same frame. Screens on one PC running the Bluvu player are shown in step, and several PCs can be lined up with a shared buffer to within one refresh of each other. The editor shows the measured spread, so you can see it for yourself.</p>
+      </details>
+      <details>
+        <summary>Can my control system drive it?</summary>
+        <p>Yes. Everything staff need (presets, streams per wall, sound zones) is a plain HTTP request with JSON. Bitfocus Companion, Crestron, Q-SYS, AMX or a script can all send them.</p>
+      </details>
+      <details>
+        <summary>What happens when a PC reboots or a cable is pulled?</summary>
+        <p>Bluvu starts at logon, waits for the network, and restarts anything that stops. Each screen remembers which monitor it belongs to and waits for it to come back. A receiving PC keeps its last setup even if the media server is unreachable.</p>
+      </details>
+      <details>
+        <summary>How is it priced?</summary>
+        <p data-slot="pricing">Add your pricing model here (per wall, per screen, per site, or a quote).</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section class="cta" id="demo">
+    <div class="wrap cta-inner">
+      <h2>See Bluvu on your walls.</h2>
+      <p>Tell us about your screens and we'll show you a layout of your room in the editor.</p>
+      <form class="cta-form" action="mailto:hello@bluvu.example" method="post" enctype="text/plain">
+        <input type="text" name="name" placeholder="Your name" required aria-label="Your name">
+        <input type="email" name="email" placeholder="Work email" required aria-label="Work email">
+        <input type="text" name="screens" placeholder="How many screens?" aria-label="How many screens">
+        <button class="btn btn-primary" type="submit">Book a demo</button>
+      </form>
+      <p class="cta-note">We'll reply within one business day.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brand-word">bluvu</span></a>
+    <nav aria-label="Footer">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#control">Control</a>
+      <a href="#faq">FAQ</a>
+      <a href="mailto:hello@bluvu.example">Contact</a>
+    </nav>
+    <p class="footer-by" id="about">Bluvu is brought to you by <b>Blue Arc Networks</b>.</p>
+    <p class="fine">© <span id="year">2026</span> Blue Arc Networks. Bluvu is a product of Blue Arc Networks. NDI&reg; is a registered trademark of Vizrt NDI AB. Other names are trademarks of their owners.</p>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>
