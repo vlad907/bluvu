@@ -25,7 +25,8 @@ MEDIA-SERVER. To redo them later (new UI, real venue names), ask Claude to recap
 
 | Slot | File | What it shows |
 |---|---|---|
-| freeform-editor | `freeform-editor.jpg` | Inside-bar wall in the editor, a tilted screen selected |
+| tilt-demo | `tilt-demo.mp4` + `.jpg` | Close-up: tilting a screen by its handle, Shift-snap to 45°, `[` `]` nudges, live preview (13 s) |
+| (spare) | `freeform-editor.jpg` | Inside-bar wall in the editor, a tilted screen selected; for social posts |
 | editor-drag | `editor-drag.mp4` + `.jpg` | Drag with snap guides, tilt with `[` `]`, resize the centre wall (13 s) |
 | sources-layers | `sources-layers.mp4` + `.jpg` | Move a layer, fade its opacity down and back (10 s) |
 | endpoints | `endpoints.jpg` | Three PCs online and in step, a new PC waiting for *Set up* |
