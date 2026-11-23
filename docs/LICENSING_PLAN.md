@@ -1,7 +1,23 @@
 # Bluvu licensing and sales: plan
 
-Status: **draft for agreement.** Nothing here changes how any PC behaves yet. The open questions are
-at the end; each phase is built only after they're answered, one phase at a time, in test mode.
+Status: **agreed 2026-11-22** (the recommendations below were accepted as they stand). Each phase is
+built one at a time on a branch, in test mode. Nothing that costs money or takes real payments starts
+without asking.
+
+## Decisions
+
+| Question | Decision |
+|---|---|
+| Payment provider | **Paddle** (merchant of record), sandbox first |
+| What's a screen | Enabled outputs; a cut into cells on a receiving PC counts **each cell** (2×2 = 4) |
+| Trial | **14 days**, full Venue features, once per machine, started by an online activation (an offline install can ask for a trial file the same way as a license) |
+| Grace period | **30 days** after expiry |
+| Hosting | **Cloudflare Workers + D1 + R2**, the site on Cloudflare Pages (account and plugin authorization are yours) |
+| Domain | **Not chosen yet.** Code uses `license.bluvu.example` as a placeholder until you pick one |
+| Distribution | §1 as written: proprietary LICENSE now, signed release bundles, update channel through the media server, move PCs by one last git update, then repos private |
+| Code signing | **Our own Ed25519 signature only for now**; an Authenticode certificate later, when it's worth paying for |
+| What locks when lapsed | **Only changing the setup**; day-to-day operation (presets, scenes, show stream, blank, Companion) keeps working |
+| Moves | **3 a year**, self-service |
 
 The brief is [prompts/licensing-and-sales.md](../prompts/licensing-and-sales.md).
 
@@ -26,7 +42,7 @@ check could just be deleted. Proposal:
 | Step | What | Why |
 |---|---|---|
 | A. Now | Add a proprietary `LICENSE` ("all rights reserved, use only under the Bluvu EULA") and a draft `EULA.md`. | The code is public with no license. Strictly that already means "all rights reserved", but saying so stops anyone assuming it's open source. It changes nothing on any PC. Code already published can't be unpublished (clones and forks may exist). |
-| B. | CI builds **versioned release bundles** on `windows-2022`: `mosaic_engine.exe`, `mosaic_receiver.exe`, `ui/dist`, `videowall.py` and the scripts, with the NDI runtime DLL. A `manifest.json` lists each file's SHA-256 and is signed with a **release Ed25519 key** (a different key from the license key, kept as a CI secret). Optionally Authenticode-signed too (costs money, see Q8). | Media servers stop needing Visual Studio, CMake and Node. The engine and receivers verify the signature before running an update. |
+| B. | CI builds **versioned release bundles** on `windows-2022`: `mosaic_engine.exe`, `mosaic_receiver.exe`, `ui/dist`, `videowall.py` and the scripts, with the NDI runtime DLL. A `manifest.json` lists each file's SHA-256 and is signed with a **release Ed25519 key** (a different key from the license key, kept as a CI secret). Optionally Authenticode-signed too (costs money; later). | Media servers stop needing Visual Studio, CMake and Node. The engine and receivers verify the signature before running an update. |
 | C. | **Update channel**: the media server asks the license server for the latest release (sending its license), downloads the bundle, checks the signature, unpacks it to `releases/<version>/`, and switches over with the previous version kept for rollback (and rolls back by itself if the new engine doesn't answer `/api/health` within a minute). Receivers get the bundle **from the media server**, the way they already get the Mosaic Receiver (`/api/receiver/package`). An offline venue uploads a release file in the editor; same check. | Updates only for current licenses; no GitHub access needed on site; venue PCs never need credentials. |
 | D. | **Move the installed PCs over without anyone on site**: one last git-based update (through *Update everything*) brings the new updater. `update.ps1` then sees the channel config and switches that PC from `git pull` to releases. The editor shows each PC's channel and version. | Existing PCs only know how to `git pull` from the public repo, so the repo must stay public until every PC has moved. |
 | E. | Once the inside bar (and any other known install) reports the release channel, **make both repos private**. | After this, new code is only seen as signed binaries. |
@@ -84,16 +100,15 @@ in itself, useless without activation).
 
 | State | When | Walls / restarts | Day-to-day operation* | Changing the setup | Adding screens | Updates | Editor shows |
 |---|---|---|---|---|---|---|---|
-| `trial` | first run, 14 days (Q3) | on | yes | yes | up to Venue | yes | "Trial: N days left" |
+| `trial` | activated trial, 14 days | on | yes | yes | up to Venue | yes | "Trial: N days left" |
 | `valid` | signed, unexpired | on | yes | yes | up to plan | yes | nothing |
 | `expiring` | within 30 days of expiry | on | yes | yes | up to plan | yes | quiet banner, renew link |
-| `grace` | past expiry, within grace (Q4) | on | yes | yes | up to plan | yes | stronger banner |
-| `expired` | past grace | **on** | yes (Q9) | locked | locked | locked | "Renew to edit"; Settings → License open |
-| `none` / `invalid` | trial over and no license, tampered file, wrong machine, clock back | **on** | yes (Q9) | locked | locked | locked | reason, how to fix |
+| `grace` | past expiry, within the 30-day grace | on | yes | yes | up to plan | yes | stronger banner |
+| `expired` | past grace | **on** | yes | locked | locked | locked | "Renew to edit"; Settings → License open |
+| `none` / `invalid` | trial over and no license, tampered file, wrong machine, clock back | **on** | yes | locked | locked | locked | reason, how to fix |
 
 \* Day-to-day operation = recalling presets and scenes, "show this stream on this group", blank and
-identify, restarting a source. Companion buttons and the control API use these at showtime, so the
-proposal is that they never lock (Q9).
+identify, restarting a source. Companion buttons and the control API use these at showtime, so they never lock.
 
 - Settings → License, the PIN/API-key settings, `GET` requests and receiver check-ins always work.
 - **Over the limit** (a downgrade, or a layout imported from a bigger server): everything keeps
@@ -102,7 +117,7 @@ proposal is that they never lock (Q9).
 - `GET /api/license` returns plan, state, screens used / allowed, expiry, grace end, days left, the
   reason for `invalid`, and the request code.
 
-## 4. What counts as a screen (Q2)
+## 4. What counts as a screen
 
 Counted by one function over **all running canvases**:
 
@@ -135,7 +150,7 @@ file), `GET /releases/latest`, `GET /releases/:v` (license-checked, signed URL t
 Admin: customers, licenses, machines, revoke, issue comp or Enterprise by hand, resend key, audit log.
 Key emails go out through Cloudflare Email Service or Postmark.
 
-## 6. Payments (Q1)
+## 6. Payments
 
 | | Stripe (Checkout + Billing) | Paddle (merchant of record) |
 |---|---|---|
@@ -181,20 +196,4 @@ say-so at each step.
 
 ## Open questions
 
-1. **Payment provider:** Paddle (recommended) or Stripe?
-2. **What's a screen:** 2×2 cut from one stream = 4 (recommended) or 1?
-3. **Trial:** 14 days, full Venue features, once per machine? Needs an online activation, or works
-   offline too (easier to repeat by reinstalling)?
-4. **Grace period:** 30 days after expiry?
-5. **Hosting:** Cloudflare Workers + D1 + R2 with the site on Cloudflare Pages (recommended), or a VPS?
-   You'd create the account and authorize the Cloudflare plugin.
-6. **Domain:** which (e.g. bluvu.com), and do you own it already? License server at
-   `license.<domain>`.
-7. **Distribution:** agree to §1 (proprietary LICENSE now; signed release bundles; update channel through
-   the media server; move PCs over by one last git update; repos private after that)? Anything other than
-   the inside bar installed from the repo that has to be moved?
-8. **Code signing:** buy an Authenticode certificate (or Azure Trusted Signing, about $10 a month) so
-   Windows SmartScreen doesn't warn on the binaries, or rely on our own Ed25519 check for now?
-9. **What "editing" locks when lapsed:** keep day-to-day operation (presets, scenes, show stream, blank,
-   Companion) working and lock only changing the setup (recommended), or lock all changes?
-10. **Moves:** 3 machine moves a year, self-service?
+All answered: see **Decisions** at the top. Still open: the domain name.

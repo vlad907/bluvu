@@ -1,0 +1,18 @@
+Bluvu
+Copyright (c) 2025-2026 Blue Arc Networks. All rights reserved.
+
+This software, including its source code, binaries, documentation and the web editor, is
+proprietary to Blue Arc Networks. It is not open source.
+
+That the source code can be seen (for example in a public repository) gives no permission to use,
+copy, modify, build, distribute, sublicense or sell it. Use of Bluvu is permitted only under the
+Bluvu End User License Agreement (legal/EULA.md) with a valid license from Blue Arc Networks, or
+under a separate written agreement with Blue Arc Networks.
+
+Third-party components keep their own licenses; see the notices that come with them (for example
+cpp-httplib, nlohmann/json, stb, Monocypher, React, and the NDI(R) SDK runtime, which is provided under
+Vizrt NDI AB's license). NDI(R) is a registered trademark of Vizrt NDI AB.
+
+THE SOFTWARE IS PROVIDED "AS IS", EXCEPT AS STATED OTHERWISE IN THE EULA OR A WRITTEN AGREEMENT.
+
+Questions about licensing: Blue Arc Networks.
