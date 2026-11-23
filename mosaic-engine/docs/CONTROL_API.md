@@ -20,8 +20,13 @@ Everything here is plain HTTP with JSON. There is no login.
 | Base URL | `http://<media-server>:8090` (for example `http://192.168.1.187:8090`) |
 | Method | `GET` to read, `POST` to change something (`PUT` for audio) |
 | Body | JSON, or empty. Send `Content-Type: application/json` when there is a body |
-| Replies | JSON. `200` / `201` on success; `400`, `401`, `404` or `500` with `{"error": "..."}` |
+| Replies | JSON. `200` / `201` on success; `400`, `401`, `403`, `404` or `500` with `{"error": "..."}` |
 | Key | Only if an API key is set (editor → Settings → Access): send it as `X-Api-Key: <key>` on every `POST` and `PUT`. Without it, changes get `401`; `GET`s work either way |
+
+**Licensing.** Everything in the Quick reference below is day-to-day control and keeps working whatever
+state the media server's license is in, expired included. Only changing the setup (outputs, groups, saving
+presets, layouts) and updates can be refused, with `403` and a message saying why (and a plan's screen
+limit refuses what would add screens). `GET /api/license` shows the plan, state and what's locked.
 
 Every `POST` needs either a body or a `Content-Length: 0` header. A request with neither is refused with
 `400` before it reaches the engine. `curl` needs `-d` (`-d ""` for no body).

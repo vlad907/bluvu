@@ -846,5 +846,12 @@ with tempfile.TemporaryDirectory() as tmp:
         log.close()
     print("  " + "\n  ".join(l.strip() for l in open(os.path.join(args.out, "engine-retry.log")) if "NDI sender" in l)[:600], flush=True)
 
+# Licensing (tools/license_check.py): every failure case keeps the walls playing; limits and locks.
+print("licensing:", flush=True)
+lc = subprocess.run([sys.executable, os.path.join(here, "license_check.py"), "--engine", args.engine, "--out", args.out, "--port", str(args.port + 1)],
+                    capture_output=True, text=True, timeout=1200)
+print("".join("  " + line + "\n" for line in lc.stdout.splitlines()), end="", flush=True)
+check(lc.returncode == 0, "licensing never blacks out a wall, and its limits and locks hold (tools/license_check.py)" + ("" if lc.returncode == 0 else ": " + lc.stderr[-400:]))
+
 print(f"\n{'FAILED: ' + str(len(failures)) + ' check(s)' if failures else 'ALL CHECKS PASSED'}")
 sys.exit(1 if failures else 0)

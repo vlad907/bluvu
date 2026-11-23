@@ -44,6 +44,13 @@ struct LayoutSummary {
     bool running = false;  // running as a canvas
 };
 
+// Thrown by a change the ChangeCheck refuses, so no caller goes on as if it had been made. Not a
+// std::exception on purpose: only the HTTP layer catches it (as a 403); generic error handling
+// doesn't swallow it.
+struct ChangeRefused {
+    std::string why;
+};
+
 class LayoutStore {
 public:
     explicit LayoutStore(std::filesystem::path dataDir);
@@ -94,7 +101,18 @@ public:
     // Returns false if there is no such version.
     bool restore(const std::string& id, const std::string& version, std::vector<std::string>* problems = nullptr);
 
+    // Asked before a change to what the canvases run (save, mutateActive, activate, restore,
+    // startCanvas) with every canvas's layout before and after: "" lets it through, anything else
+    // refuses it by throwing ChangeRefused (licensing: screens and features). Never asked by
+    // load(), so a restart always comes back with the saved layouts. A change that adds nothing
+    // (screens, canvases, sound outputs, capture sources) is never refused.
+    using ChangeCheck = std::function<std::string(const std::vector<const Layout*>& before, const std::vector<const Layout*>& after)>;
+    void setChangeCheck(ChangeCheck check) { check_ = std::move(check); }
+
 private:
+    // The check, for the canvases as they'd be (after(c) = the layout canvas c would show; `added`
+    // = a canvas being started). Lock held. Throws ChangeRefused.
+    void passes(const std::function<const Layout*(const CanvasSlot&)>& after, const Layout* added = nullptr);
     std::filesystem::path fileFor(const std::string& id) const;
     void snapshot(const std::string& id, bool force) const;  // copies the file on disk into the history
     void writeFile(const Layout& l) const;
@@ -110,6 +128,7 @@ private:
     std::vector<CanvasSlot> canvases_;  // primary first
     std::map<std::string, std::shared_ptr<const Layout>> snapshots_;  // by canvas id
     std::atomic<uint64_t> version_{0};
+    ChangeCheck check_;
 };
 
 }  // namespace mosaic

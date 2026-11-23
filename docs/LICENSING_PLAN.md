@@ -176,7 +176,7 @@ Windows CI green, shown working in test mode before the next one starts.
 
 0. **Legal now**: `LICENSE` (proprietary) and `EULA.md`, terms, privacy and refund drafts clearly
    marked *draft for a lawyer*. No behavior change.
-1. **Engine license core**, in *report-only* mode: verify and store the file, fingerprint, trial,
+1. **Engine license core** (**built**, see "Phase 1 as built" below), in *report-only* mode: verify and store the file, fingerprint, trial,
    states, `GET /api/license`, screen counting, the lock decisions computed but **not enforced**.
    Tests: good / tampered / expired / wrong machine / clock back / grace / limit, and walls keep
    playing and a restart reloads the layout in every failure case.
@@ -197,3 +197,28 @@ say-so at each step.
 ## Open questions
 
 All answered: see **Decisions** at the top. Still open: the domain name.
+
+## Phase 1 as built
+
+- Code: `mosaic-engine/engine/src/license/` (`license_format` = the file format and Ed25519 via
+  Monocypher; `license` = states, screen counting, request classes, the `Manager`; `fingerprint` = this
+  PC's hashed identifiers; `license_tool` = `bluvu_license`, which makes keys and signs files).
+- Startup: layouts load and canvases start **before** the license is looked at. The license is checked in
+  two places only: the HTTP `guard` (request kinds: read / always / operation / setup / update) and the
+  layout store's change check (what would be added: screens, canvases, sound outputs, capture sources).
+  A refused change throws `ChangeRefused`, which only the HTTP layer catches (a `403` with the reason).
+- API: `GET /api/license`, `PUT /api/license` (body = the license file), `DELETE /api/license`,
+  `POST /api/license/request-code {key}`.
+- Report-only: without `--license-enforce` nothing is refused; `GET /api/license` → `wouldBlock` counts what
+  would have been, with the last one. Every PC runs like this until phase 6.
+- Keys: no production key yet (made on the license server in phase 3, private half never in the repo).
+  Test builds (`-DMOSAIC_LICENSE_TEST_KEY=ON`, CI only) also trust the published test key
+  (`mosaic-engine/tools/license-test-key.txt`) and take `MOSAIC_LICENSE_FINGERPRINT` in place of the PC's.
+  A build without it verifies nothing yet, so every venue PC shows `none` in report-only mode.
+- Trial: a trial is a license file with `"trial": true` (and `graceDays: 0`), issued by the server in
+  phase 3; the engine has no trial of its own to start, so reinstalling can't restart one.
+- Tests: `mosaic_engine --license-self-test` (good / tampered / unknown key / expiry / grace / comp / trial /
+  machine 2-of-3 / clock set back / screen counting / limits / request kinds) and `tools/license_check.py`
+  (real engines: no license, damaged file, Starter at its limit, tampered and another PC's file refused over
+  the API, offline activation round trip, expired and over the limit with a restart, grace, another PC, clock
+  set back; every case checks all outputs keep rendering). CI runs both.

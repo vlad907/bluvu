@@ -35,6 +35,7 @@ in the style of Resolume's Advanced Output drives the running engine through a R
 | Layer titles: a name tag in the corner of any layer, to tell inputs apart on the screens | **Working, pixel-checked** (built-in upper-case font) |
 | Video file sources (MP4 / MOV: H.264, HEVC, AV1), up to 8K, with loop / pause / restart | **Working, pixel-checked** on macOS (8K HEVC at 30 fps) and by CI on Windows; plays 8K AV1 on the media server. Falls back to CPU decoding when the GPU can't convert the frames; skips late frames instead of slowing down |
 | Optional editor PIN and API key for changes | **Working**, tested in the browser |
+| Licensing: signed license file checked offline, plan limits, lapsed = setup locked but walls keep playing ([plan](../docs/LICENSING_PLAN.md)) | **Report-only for now** (nothing is refused unless started with `--license-enforce`); checked by CI (`--license-self-test`, `tools/license_check.py`) |
 | Presets per wall group, one-call "show this NDI stream on this group", control API ([docs/CONTROL_API.md](docs/CONTROL_API.md)) | **Working, pixel-checked** (with colour sources; NDI switching not yet tried on Windows) |
 | Free-form mosaics: any position, gap and tilt angle per panel | **Working, pixel-checked**; rotate handle and `[` `]` keys in the editor |
 | Layered sources with opacity and source crop; scenes with crossfade | **Working, pixel-checked** on Metal; checked on Direct3D 11 by CI |
@@ -87,6 +88,7 @@ mosaic_engine [--port 8090] [--host 0.0.0.0] [--data ./data] [--layouts ./layout
 
 - `--data`: where layouts and the active-layout state are saved. It's seeded from `--layouts` on first run.
 - `--run-seconds N`: headless benchmark; prints the metrics JSON when it exits.
+- `--license-enforce`: refuse what the license doesn't allow. Without it (for now, on every PC) the engine only reports what it would refuse (`GET /api/license` → `wouldBlock`). `--license-self-test` checks the license rules and exits.
 - `--snapshot-dir DIR`: after 2 s, writes a full-resolution JPEG of every output plus `canvas.jpg`. This is the quickest way to check a mapping.
 
 Tools:

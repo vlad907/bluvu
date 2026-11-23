@@ -3,6 +3,8 @@
 //   mosaic_engine [--port 8090] [--host 0.0.0.0] [--data ./data] [--layouts ./layouts]
 //                 [--ui ./ui/dist] [--run-seconds N] [--snapshot-dir DIR] [--layout ID] [--software-gpu]
 //   mosaic_engine --audio-self-test     # the audio delay logic against a simulated network
+//   mosaic_engine --license-self-test   # the license rules (docs/LICENSING_PLAN.md)
+//   --license-enforce: refuse what the license doesn't allow (default: report it only, for now)
 #include <atomic>
 #include <csignal>
 #include <cstdlib>
@@ -19,6 +21,7 @@
 #include "core/engine.hpp"
 #include "core/layout_store.hpp"
 #include "io/video_io.hpp"
+#include "license/license.hpp"
 #include "render/renderer.hpp"
 
 namespace mosaic {
@@ -40,6 +43,8 @@ struct Options {
     std::string layout;
     bool softwareGpu = false;
     bool audioSelfTest = false;
+    bool licenseSelfTest = false;
+    bool licenseEnforce = false;
 };
 
 Options parse(int argc, char** argv) {
@@ -62,9 +67,11 @@ Options parse(int argc, char** argv) {
         else if (a == "--layout") o.layout = next();
         else if (a == "--software-gpu") o.softwareGpu = true;
         else if (a == "--audio-self-test") o.audioSelfTest = true;
+        else if (a == "--license-self-test") o.licenseSelfTest = true;
+        else if (a == "--license-enforce") o.licenseEnforce = true;
         else if (a == "--help" || a == "-h") {
             std::cout << "usage: mosaic_engine [--port N] [--host ADDR] [--data DIR] [--layouts DIR] [--ui DIR]\n"
-                         "                     [--layout ID] [--run-seconds N] [--snapshot-dir DIR] [--software-gpu]\n";
+                         "                     [--layout ID] [--run-seconds N] [--snapshot-dir DIR] [--software-gpu] [--license-enforce]\n";
             std::exit(0);
         } else throw std::runtime_error("unknown option " + a);
     }
@@ -89,6 +96,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (opt.audioSelfTest) return audioSelfTest();
+    if (opt.licenseSelfTest) return license::selfTest();
     std::signal(SIGINT, onSignal);
     std::signal(SIGTERM, onSignal);
 
@@ -109,6 +117,13 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    // The license is looked at only from here on: the saved layouts above loaded without it, so a
+    // restart always comes back with them, whatever state the license is in.
+    license::Manager licenseManager(opt.data, opt.licenseEnforce);
+    store.setChangeCheck([&licenseManager](const std::vector<const Layout*>& before, const std::vector<const Layout*>& after) {
+        return licenseManager.checkChange(before, after);
+    });
+
     // One engine per canvas, each on its own GPU device and render thread.
     std::filesystem::create_directories(std::filesystem::path(opt.data) / "media");
     Canvases canvases(store, ndi.get(), ro, std::filesystem::path(opt.data) / "media");
@@ -122,7 +137,7 @@ int main(int argc, char** argv) {
 
     std::error_code binEc;
     auto binDir = std::filesystem::weakly_canonical(std::filesystem::absolute(argv[0]), binEc).parent_path();
-    HttpApi api(canvases, store, opt.ui, binDir);
+    HttpApi api(canvases, store, opt.ui, binDir, &licenseManager);
     std::thread http([&] {
         if (!api.listen(opt.host, opt.port)) {
             std::cerr << "cannot listen on " << opt.host << ":" << opt.port << "\n";

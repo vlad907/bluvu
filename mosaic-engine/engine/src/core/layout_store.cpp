@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <utility>
 
 using nlohmann::json;
 namespace fs = std::filesystem;
@@ -21,6 +22,19 @@ thread_local std::string tlCanvas;
 }
 
 void LayoutStore::setRequestCanvas(const std::string& canvasId) { tlCanvas = canvasId; }
+
+void LayoutStore::passes(const std::function<const Layout*(const CanvasSlot&)>& after, const Layout* added) {
+    if (!check_) return;
+    std::vector<const Layout*> before, next;
+    for (auto& c : canvases_) {
+        auto it = snapshots_.find(c.id);
+        before.push_back(it == snapshots_.end() ? nullptr : it->second.get());
+        next.push_back(after(c));
+    }
+    if (added) next.push_back(added);
+    std::string why = check_(before, next);
+    if (!why.empty()) throw ChangeRefused{why};
+}
 const std::string& LayoutStore::requestCanvas() { return tlCanvas; }
 
 const CanvasSlot& LayoutStore::current() const {
@@ -130,6 +144,7 @@ std::string LayoutStore::startCanvas(const std::string& layoutId) {
     std::lock_guard lock(mutex_);
     auto it = std::find_if(layouts_.begin(), layouts_.end(), [&](auto& l) { return l.id == layoutId; });
     if (it == layouts_.end() || layoutRunning(layoutId)) return "";
+    passes([&](const CanvasSlot& c) { return snapshots_.count(c.id) ? snapshots_.at(c.id).get() : nullptr; }, &*it);
     std::string id;
     for (int n = 1; id.empty() || std::any_of(canvases_.begin(), canvases_.end(), [&](auto& c) { return c.id == id; }); ++n) id = "canvas-" + std::to_string(n);
     canvases_.push_back({id, layoutId});
@@ -167,6 +182,8 @@ std::optional<Layout> LayoutStore::get(const std::string& id) const {
 std::vector<std::string> LayoutStore::save(Layout layout) {
     auto problems = normalize(layout);
     std::lock_guard lock(mutex_);
+    if (layoutRunning(layout.id))
+        passes([&](const CanvasSlot& c) { return c.layout == layout.id ? &layout : (snapshots_.count(c.id) ? snapshots_.at(c.id).get() : nullptr); });
     auto it = std::find_if(layouts_.begin(), layouts_.end(), [&](auto& l) { return l.id == layout.id; });
     if (it != layouts_.end()) *it = layout;
     else layouts_.push_back(layout);
@@ -187,6 +204,8 @@ bool LayoutStore::activate(const std::string& id, bool* alreadyRunning) {
         if (alreadyRunning) *alreadyRunning = true;
         return false;
     }
+    const Layout* shown = &*l;
+    passes([&](const CanvasSlot& c) { return c.id == cur.id ? shown : (snapshots_.count(c.id) ? snapshots_.at(c.id).get() : nullptr); });
     cur.layout = id;  // the canvas (and its engine) stays; it shows the other layout
     publish(*l);
     writeState();
@@ -215,6 +234,7 @@ bool LayoutStore::mutateActive(const std::function<bool(Layout&)>& fn, std::vect
     copy.id = cur;  // the active layout keeps its id
     auto p = normalize(copy);
     if (problems) *problems = std::move(p);
+    passes([&](const CanvasSlot& c) { return c.layout == cur ? &copy : (snapshots_.count(c.id) ? snapshots_.at(c.id).get() : nullptr); });
     *it = copy;
     snapshot(copy.id, false);
     writeFile(copy);
@@ -291,6 +311,8 @@ bool LayoutStore::restore(const std::string& id, const std::string& version, std
     std::lock_guard lock(mutex_);
     auto p = normalize(*old);
     if (problems) *problems = std::move(p);
+    if (layoutRunning(id))
+        passes([&](const CanvasSlot& c) { return c.layout == id ? &*old : (snapshots_.count(c.id) ? snapshots_.at(c.id).get() : nullptr); });
     snapshot(id, true);
     auto it = std::find_if(layouts_.begin(), layouts_.end(), [&](auto& l) { return l.id == id; });
     if (it != layouts_.end()) *it = *old;

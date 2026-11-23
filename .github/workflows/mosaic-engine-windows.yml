@@ -33,8 +33,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Configure (MSVC, no NDI SDK)
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      # MOSAIC_LICENSE_TEST_KEY: CI signs test licenses with the published test key
+      # (tools/license_check.py). Builds for venues never set it.
+      - name: Configure (MSVC, no NDI SDK, license test key)
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DMOSAIC_LICENSE_TEST_KEY=ON
 
       - name: Build engine
         run: cmake --build build --config Release --parallel
@@ -72,6 +74,15 @@ jobs:
           $code = $LASTEXITCODE
           $out
           if ($code) { $out | Select-String 'FAIL' | ForEach-Object { "::error title=receiver self-test::$($_.Line)" }; exit $code }
+
+      - name: License self-test (signatures, expiry, grace, machine, clock, limits)
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          $out = & build/Release/mosaic_engine.exe --license-self-test 2>&1
+          $code = $LASTEXITCODE
+          $out
+          if ($code) { $out | Select-String 'FAIL' | ForEach-Object { "::error title=license self-test::$($_.Line)" }; exit $code }
 
       - name: Audio self-test (delay, stalls, drift; simulated network)
         if: ${{ !cancelled() }}

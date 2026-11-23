@@ -28,6 +28,7 @@
 #include "core/engine.hpp"
 #include "core/layout_store.hpp"
 #include "io/video_io.hpp"
+#include "license/license.hpp"
 #include "util/image.hpp"
 #include "util/paths.hpp"
 
@@ -582,6 +583,14 @@ struct HttpApi::Impl {
 
     Impl(Canvases& c, LayoutStore& s) : canvases(c), store(s) {}
 
+    license::Manager* license = nullptr;
+    license::Usage usage() {
+        auto running = store.running();
+        std::vector<const Layout*> ls;
+        for (auto& l : running) ls.push_back(l.get());
+        return license::usageOf(ls);
+    }
+
     // ---- the Mosaic Receiver, handed out to receiving PCs (their dashboards update themselves) ----
     std::filesystem::path binDir;
 
@@ -639,12 +648,19 @@ struct HttpApi::Impl {
         return {{"available", ok}, {"version", ok ? std::string(buf) : ""}, {"files", files}};
     }
 
-    // Wraps a handler so malformed JSON and unexpected errors become 400/500 replies.
+    // Wraps a handler so malformed JSON and unexpected errors become 400/500 replies. Changes are
+    // checked against the license first (setup locked when it's lapsed; day-to-day operation never
+    // is), and a change the layout store refuses for the license (screens, features) is a 403.
     template <class F>
     auto guard(F f) {
-        return [f](const httplib::Request& req, httplib::Response& res) {
+        return [this, f](const httplib::Request& req, httplib::Response& res) {
             try {
+                if (license && req.method != "GET" && req.method != "HEAD") {
+                    if (auto why = license->checkRequest(req.method, req.path, req.body); !why.empty()) return sendError(res, 403, why);
+                }
                 f(req, res);
+            } catch (const ChangeRefused& r) {
+                sendError(res, 403, r.why);
             } catch (const json::exception& e) {
                 sendError(res, 400, std::string("bad request: ") + e.what());
             } catch (const std::exception& e) {
@@ -695,6 +711,31 @@ struct HttpApi::Impl {
             sendJson(res, {{"pinSet", !editorPin.empty()}, {"apiKeySet", !apiKey.empty()}});
         }));
         // Lets the editor check a PIN without changing anything.
+        // ---- license (docs/LICENSING_PLAN.md) ----
+        // GET: plan, state, screens used and allowed, expiry, what's locked. PUT: install a license
+        // file (the body is the file); refused, keeping the old one, unless it verifies on this PC.
+        // DELETE: remove it. POST /request-code {key}: the code for an offline activation.
+        s.Get("/api/license", guard([this](const httplib::Request&, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            sendJson(res, license->statusJson(usage()));
+        }));
+        s.Put("/api/license", guard([this](const httplib::Request& req, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            if (auto why = license->install(req.body); !why.empty()) return sendError(res, 400, why);
+            sendJson(res, license->statusJson(usage()));
+        }));
+        s.Delete("/api/license", guard([this](const httplib::Request&, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            license->remove();
+            sendJson(res, license->statusJson(usage()));
+        }));
+        s.Post("/api/license/request-code", guard([this](const httplib::Request& req, httplib::Response& res) {
+            if (!license) return sendError(res, 404, "licensing isn't enabled in this engine");
+            std::string key = parseBody(req).value("key", "");
+            if (key.empty()) return sendError(res, 400, "key is required");
+            sendJson(res, {{"code", license->requestCode(key)}});
+        }));
+
         s.Post("/api/security/check", guard([](const httplib::Request&, httplib::Response& res) { sendJson(res, {{"ok", true}}); }));
 
         // ---- sources ----
@@ -1849,8 +1890,9 @@ struct HttpApi::Impl {
     }
 };
 
-HttpApi::HttpApi(Canvases& canvases, LayoutStore& store, std::filesystem::path uiDir, std::filesystem::path binDir)
+HttpApi::HttpApi(Canvases& canvases, LayoutStore& store, std::filesystem::path uiDir, std::filesystem::path binDir, license::Manager* license)
     : impl_(std::make_unique<Impl>(canvases, store)) {
+    impl_->license = license;
     impl_->binDir = std::move(binDir);
     impl_->appDir = findAppDir(impl_->binDir.empty() ? std::filesystem::current_path() : impl_->binDir);
     impl_->loadUpdateRequest();

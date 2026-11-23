@@ -1,0 +1,8 @@
+The published license TEST key. Anyone can sign with it, so only test builds trust it
+(cmake -DMOSAIC_LICENSE_TEST_KEY=ON: CI and development). Builds for venues never do.
+
+Seed: the first 32 bytes of SHA-512("bluvu-license-test-key: published, never trust in a venue build")
+Key id (kid): test
+Public key: de7a9c609cbaca3b3766692fc2ebeca0c3093be28e4d18508ce5b1e93bf46136
+
+Sign a test license:  bluvu_license sign --test payload.json [--request CODE]

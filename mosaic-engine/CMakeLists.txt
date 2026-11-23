@@ -28,6 +28,11 @@ FetchContent_Declare(httplib
 FetchContent_Declare(stb
   GIT_REPOSITORY https://github.com/nothings/stb.git
   GIT_TAG 003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5)
+# Ed25519 signature checks for license files (public domain / CC0, plain C).
+FetchContent_Declare(monocypher
+  GIT_REPOSITORY https://github.com/LoupVaillant/Monocypher.git
+  GIT_TAG 4.0.3
+  GIT_SHALLOW TRUE)
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(HTTPLIB_COMPILE OFF CACHE INTERNAL "")
@@ -36,8 +41,16 @@ set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE INTERNAL "")
 set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF CACHE INTERNAL "")
 set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF CACHE INTERNAL "")
 set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF CACHE INTERNAL "")
-# stb has no CMakeLists.txt, so MakeAvailable only downloads it.
-FetchContent_MakeAvailable(nlohmann_json httplib stb)
+# stb and Monocypher have no CMakeLists.txt, so MakeAvailable only downloads them.
+FetchContent_MakeAvailable(nlohmann_json httplib stb monocypher)
+add_library(monocypher STATIC ${monocypher_SOURCE_DIR}/src/monocypher.c ${monocypher_SOURCE_DIR}/src/optional/monocypher-ed25519.c)
+target_include_directories(monocypher SYSTEM PUBLIC ${monocypher_SOURCE_DIR}/src ${monocypher_SOURCE_DIR}/src/optional)
+set_target_properties(monocypher PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Licensing (docs/LICENSING_PLAN.md). ON also accepts licenses signed with the published test key
+# (tools/license-test-key.txt) and lets MOSAIC_LICENSE_FINGERPRINT stand in for this PC's identity:
+# for CI and development only, never for builds that go to venues.
+option(MOSAIC_LICENSE_TEST_KEY "Accept test-key licenses (CI / development builds only)" OFF)
 
 # ---------------------------------------------------------------------------
 # NDI SDK (optional). Point NDI_SDK_DIR at the SDK install folder.
@@ -86,6 +99,10 @@ set(ENGINE_SOURCES
   engine/src/audio/audio_outputs.cpp
   engine/src/audio/audio_selftest.cpp
   engine/src/io/capture.cpp
+  engine/src/license/license.cpp
+  engine/src/license/license_format.cpp
+  engine/src/license/fingerprint.cpp
+  engine/src/license/license_selftest.cpp
 )
 if(MOSAIC_HAVE_NDI)
   list(APPEND ENGINE_SOURCES engine/src/io/ndi_sdk.cpp)
@@ -105,8 +122,12 @@ endif()
 add_executable(mosaic_engine ${ENGINE_SOURCES})
 target_include_directories(mosaic_engine PRIVATE engine/src)
 target_include_directories(mosaic_engine SYSTEM PRIVATE ${stb_SOURCE_DIR})
-target_link_libraries(mosaic_engine PRIVATE nlohmann_json::nlohmann_json httplib::httplib)
+target_link_libraries(mosaic_engine PRIVATE nlohmann_json::nlohmann_json httplib::httplib monocypher)
 target_compile_definitions(mosaic_engine PRIVATE MOSAIC_VERSION="${PROJECT_VERSION}")
+if(MOSAIC_LICENSE_TEST_KEY)
+  target_compile_definitions(mosaic_engine PRIVATE MOSAIC_LICENSE_TEST_KEY=1)
+  message(STATUS "Licensing: test key accepted (CI / development build)")
+endif()
 
 if(MOSAIC_HAVE_NDI)
   target_include_directories(mosaic_engine PRIVATE ${NDI_INCLUDE_DIR})
@@ -136,6 +157,18 @@ endif()
 
 if(NOT MSVC)
   target_compile_options(mosaic_engine PRIVATE -Wall -Wextra -Wno-unused-parameter)
+endif()
+
+# The license tool: makes signing keys, signs license files, reads a request code. It only signs
+# with a key it's given; the private key never goes in the repository (docs/LICENSING_PLAN.md).
+add_executable(bluvu_license engine/src/license/license_tool.cpp engine/src/license/license_format.cpp)
+target_include_directories(bluvu_license PRIVATE engine/src)
+target_link_libraries(bluvu_license PRIVATE nlohmann_json::nlohmann_json monocypher)
+if(MSVC)
+  target_compile_options(bluvu_license PRIVATE /W3 /utf-8 /permissive-)
+  target_compile_definitions(bluvu_license PRIVATE NOMINMAX)
+else()
+  target_compile_options(bluvu_license PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
 
 # ---------------------------------------------------------------------------
