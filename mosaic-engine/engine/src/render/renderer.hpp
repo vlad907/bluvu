@@ -149,6 +149,9 @@ struct RendererOptions {
     bool softwareGpu = false;
     // Which GPU: an index into listGpus(); -1 = the system's default one.
     int gpu = -1;
+    // That GPU's GpuInfo::luid, when known: the card itself, wherever it's numbered by now (the
+    // numbering can change between listing the GPUs and starting on one). 0 = go by the number.
+    int64_t gpuLuid = 0;
 };
 
 std::unique_ptr<Renderer> createRenderer(const RendererOptions& options, std::string& error);
@@ -184,6 +187,9 @@ struct GpuInfo {
     int index = 0;
     std::string name;
     uint64_t memoryMB = 0;
+    // Windows: which card this is, for as long as Windows stays up (two cards of the same model
+    // have the same name, and their numbers can swap). 0 = not known.
+    int64_t luid = 0;
     std::vector<GpuOutputInfo> outputs;
 };
 std::vector<GpuInfo> listGpus();

@@ -86,6 +86,7 @@ set(ENGINE_SOURCES
   engine/src/audio/audio_ring.cpp
   engine/src/audio/audio_outputs.cpp
   engine/src/audio/audio_selftest.cpp
+  engine/src/core/gpu_choice_selftest.cpp
   engine/src/io/capture.cpp
 )
 if(MOSAIC_HAVE_NDI)

@@ -3,6 +3,7 @@
 //   mosaic_engine [--port 8090] [--host 0.0.0.0] [--data ./data] [--layouts ./layouts]
 //                 [--ui ./ui/dist] [--run-seconds N] [--snapshot-dir DIR] [--layout ID] [--software-gpu]
 //   mosaic_engine --audio-self-test     # the audio delay logic against a simulated network
+//   mosaic_engine --gpu-self-test       # which GPU a canvas picks when two cards are the same model
 #include <atomic>
 #include <csignal>
 #include <cstdlib>
@@ -24,6 +25,7 @@
 
 namespace mosaic {
 int audioSelfTest();  // audio/audio_selftest.cpp
+int gpuChoiceSelfTest();  // core/gpu_choice_selftest.cpp
 }
 
 namespace fs = std::filesystem;
@@ -41,6 +43,7 @@ struct Options {
     std::string layout;
     bool softwareGpu = false;
     bool audioSelfTest = false;
+    bool gpuSelfTest = false;
 };
 
 Options parse(int argc, char** argv) {
@@ -63,6 +66,7 @@ Options parse(int argc, char** argv) {
         else if (a == "--layout") o.layout = next();
         else if (a == "--software-gpu") o.softwareGpu = true;
         else if (a == "--audio-self-test") o.audioSelfTest = true;
+        else if (a == "--gpu-self-test") o.gpuSelfTest = true;
         else if (a == "--help" || a == "-h") {
             std::cout << "usage: mosaic_engine [--port N] [--host ADDR] [--data DIR] [--layouts DIR] [--ui DIR]\n"
                          "                     [--layout ID] [--run-seconds N] [--snapshot-dir DIR] [--software-gpu]\n";
@@ -90,6 +94,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (opt.audioSelfTest) return audioSelfTest();
+    if (opt.gpuSelfTest) return gpuChoiceSelfTest();
     std::signal(SIGINT, onSignal);
     std::signal(SIGTERM, onSignal);
 

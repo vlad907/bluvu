@@ -1687,7 +1687,7 @@ struct HttpApi::Impl {
                           {"canvas", {{"width", l->canvas.width}, {"height", l->canvas.height}}}};
                 c["running"] = run && run->engine;
                 c["gpu"] = run && run->renderer ? run->renderer->deviceName() : "";
-                c["gpuIndex"] = run ? run->gpu : -1;
+                c["gpuIndex"] = run ? run->gpu.load() : -1;
                 c["gpuWanted"] = l->gpu;
                 c["error"] = !run ? "starting" : run->engine && run->engine->failed() ? run->engine->failure() + " (starting again)" : run->error;
                 c["restarts"] = run ? run->restarts : 0;
@@ -1759,7 +1759,7 @@ struct HttpApi::Impl {
                 }
                 json canvasesOn = json::array();
                 for (auto& [id, run] : canvases.all())
-                    if (run && run->gpu == g.index) canvasesOn.push_back(id);
+                    if (run && (run->gpuLuid && g.luid ? run->gpuLuid == g.luid : run->gpu == g.index)) canvasesOn.push_back(id);
                 list.push_back({{"index", g.index}, {"name", g.name}, {"memoryMB", g.memoryMB}, {"outputs", outs}, {"canvases", canvasesOn}});
             }
             sendJson(res, {{"gpus", list}});

@@ -843,6 +843,11 @@ mm = subprocess.run([args.engine, "--monitors"], capture_output=True, text=True,
 print("".join("  " + line + "\n" for line in mm.stdout.splitlines()), end="", flush=True)
 check(mm.returncode == 0 and "MONITOR MATCH PASSED" in mm.stdout, "an output stays with its monitor, waits while it is off, and this PC's monitors can be listed")
 
+print("a canvas picks the GPU its monitors are on:", flush=True)
+gg = subprocess.run([args.engine, "--gpu-self-test"], capture_output=True, text=True, timeout=60)
+print("".join("  " + line + "\n" for line in gg.stdout.splitlines()), end="", flush=True)
+check(gg.returncode == 0 and "all passed" in gg.stdout, "with two cards of the same model numbered either way round, a canvas ends up on the one its monitor is on")
+
 # NDI streams that can't start at first: like a canvas starting again while its old streams still
 # hold their names. A test NDI system refuses each name 6 times (the engine's first 5 quick tries
 # and one retry), so the streams can only come up through the engine trying again later.

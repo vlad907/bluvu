@@ -225,20 +225,30 @@ std::vector<ComPtr<IDXGIAdapter1>> hardwareAdapters() {
     return out;
 }
 
-ComPtr<IDXGIAdapter1> hardwareAdapter(int index) {
+int64_t luidOf(const LUID& l) { return (static_cast<int64_t>(l.HighPart) << 32) | l.LowPart; }
+
+// The GPU with this LUID if one is given (the card itself), else the one at this number.
+ComPtr<IDXGIAdapter1> hardwareAdapter(int index, int64_t luid) {
     auto all = hardwareAdapters();
+    if (luid) {
+        for (auto& a : all) {
+            DXGI_ADAPTER_DESC1 d{};
+            if (SUCCEEDED(a->GetDesc1(&d)) && luidOf(d.AdapterLuid) == luid) return a;
+        }
+        return nullptr;
+    }
     return index >= 0 && index < static_cast<int>(all.size()) ? all[static_cast<size_t>(index)] : nullptr;
 }
 
 class D3D11Renderer final : public Renderer {
 public:
-    D3D11Renderer(bool warp, int gpu) {
+    D3D11Renderer(bool warp, int gpu, int64_t gpuLuid) {
         UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
         const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
         // A chosen GPU (canvas setting): its adapter, with the "unknown" driver type that requires.
         ComPtr<IDXGIAdapter1> chosen;
         if (!warp && gpu >= 0) {
-            chosen = hardwareAdapter(gpu);
+            chosen = hardwareAdapter(gpu, gpuLuid);
             if (!chosen) throw std::runtime_error("there's no GPU number " + std::to_string(gpu + 1) + " on this PC");
         }
         IDXGIAdapter* adapterArg = chosen.Get();
@@ -1114,6 +1124,7 @@ std::vector<GpuInfo> listGpus() {
         g.index = static_cast<int>(i);
         g.name = narrow(d.Description);
         g.memoryMB = d.DedicatedVideoMemory / (1024 * 1024);
+        g.luid = luidOf(d.AdapterLuid);
         ComPtr<IDXGIOutput> o;
         for (UINT k = 0; all[i]->EnumOutputs(k, &o) != DXGI_ERROR_NOT_FOUND; ++k, o.Reset()) {
             DXGI_OUTPUT_DESC od{};
@@ -1144,7 +1155,7 @@ std::vector<GpuInfo> listGpus() {
 
 std::unique_ptr<Renderer> createRenderer(const RendererOptions& options, std::string& error) {
     try {
-        return std::make_unique<D3D11Renderer>(options.softwareGpu, options.gpu);
+        return std::make_unique<D3D11Renderer>(options.softwareGpu, options.gpu, options.gpuLuid);
     } catch (const std::exception& e) {
         error = e.what();
         return nullptr;

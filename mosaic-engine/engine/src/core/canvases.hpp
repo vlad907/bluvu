@@ -2,6 +2,7 @@
 // each with its own GPU device and render thread, started and stopped to match.
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <map>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "core/engine.hpp"
+#include "core/gpu_choice.hpp"
 #include "core/layout_store.hpp"
 #include "io/video_io.hpp"
 #include "render/renderer.hpp"
@@ -23,7 +25,8 @@ struct CanvasRun {
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<Engine> engine;
     std::string error;  // why it couldn't start (no engine then)
-    int gpu = -1;       // the GPU it was started on (RendererOptions::gpu)
+    std::atomic<int> gpu{-1};  // the number of the GPU it runs on (follows the card if Windows renumbers it)
+    int64_t gpuLuid = 0;       // that card (GpuInfo::luid; 0 = not known)
     std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
     int restarts = 0;   // times it was started again after failing
     ~CanvasRun();
@@ -47,8 +50,8 @@ public:
     std::vector<std::string> problems() const;
     // This PC's GPUs (cached for a few seconds).
     std::vector<GpuInfo> gpus() const;
-    // Which GPU a layout asks for, by number, found again by name if the numbering changed.
-    int resolveGpu(const Layout& l) const;
+    // Which GPU a layout's canvas belongs on (see chooseGpu). `runningOn`: the card it's on now.
+    GpuChoice resolveGpu(const Layout& l, int64_t runningOn = 0) const;
     const std::filesystem::path& mediaDir() const { return mediaDir_; }
     // NDI, for work outside any canvas (stream previews). Null when NDI isn't available.
     NdiSystem* ndi() const { return ndi_; }

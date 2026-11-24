@@ -33,21 +33,20 @@ std::vector<GpuInfo> Canvases::gpus() const {
     return gpus_;
 }
 
-int Canvases::resolveGpu(const Layout& l) const {
-    if (l.gpu < 0) return -1;
-    auto list = gpus();
-    if (l.gpuName.empty() || (l.gpu < static_cast<int>(list.size()) && list[static_cast<size_t>(l.gpu)].name == l.gpuName)) return l.gpu;
-    for (auto& g : list)
-        if (g.name == l.gpuName) return g.index;  // moved: the same card under another number
-    return l.gpu;  // not found by name: as numbered (it fails clearly if there's no such number)
+GpuChoice Canvases::resolveGpu(const Layout& l, int64_t runningOn) const {
+    if (l.gpu < 0) return {};
+    return chooseGpu(l, gpus(), runningOn);
 }
 
 void Canvases::sync() {
     auto slots = store_.canvases();
     std::vector<std::shared_ptr<CanvasRun>> stopping;  // destroyed outside the lock (joins render threads)
-    std::map<std::string, int> wantGpu;
+    std::map<std::string, GpuChoice> wantGpu;
     for (auto& c : slots)
-        if (auto l = store_.snapshot(c.id)) wantGpu[c.id] = resolveGpu(*l);
+        if (auto l = store_.snapshot(c.id)) {
+            auto run = get(c.id);
+            wantGpu[c.id] = resolveGpu(*l, run ? run->gpuLuid : 0);
+        }
     {
         std::lock_guard l(m_);
         for (auto it = runs_.begin(); it != runs_.end();) {
@@ -60,10 +59,18 @@ void Canvases::sync() {
                 restarts_[it->first] = run->restarts + 1;
                 keep = false;
             }
-            if (keep && wantGpu.count(it->first) && wantGpu[it->first] != it->second->gpu) {
-                // Moved to another GPU: started again there (its streams pause for a moment).
-                std::cerr << "[canvas] " << it->first << " moves to " << (wantGpu[it->first] < 0 ? std::string("the default GPU") : "GPU " + std::to_string(wantGpu[it->first] + 1)) << "\n";
-                keep = false;
+            if (keep && wantGpu.count(it->first)) {
+                const GpuChoice& want = wantGpu[it->first];
+                // The same card under another number (Windows renumbered them) is no move.
+                bool sameCard = want.luid && run->gpuLuid ? want.luid == run->gpuLuid : want.index == run->gpu;
+                if (sameCard) {
+                    run->gpu = want.index;
+                } else {
+                    // Moved to another GPU (in the editor, or its monitors turned out to be on the
+                    // other card of that model): started again there (its streams pause for a moment).
+                    std::cerr << "[canvas] " << it->first << " moves to " << (want.index < 0 ? std::string("the default GPU") : "GPU " + std::to_string(want.index + 1)) << "\n";
+                    keep = false;
+                }
             }
             if (keep) {
                 ++it;
@@ -84,7 +91,9 @@ void Canvases::sync() {
             if (runs_.count(c.id)) continue;
             auto run = std::make_shared<CanvasRun>();
             RendererOptions ro = rendererOptions_;
-            ro.gpu = run->gpu = wantGpu.count(c.id) ? wantGpu[c.id] : -1;
+            const GpuChoice want = wantGpu.count(c.id) ? wantGpu[c.id] : GpuChoice{};
+            ro.gpu = run->gpu = want.index;
+            ro.gpuLuid = run->gpuLuid = want.luid;
             run->restarts = restarts_.count(c.id) ? restarts_[c.id] : 0;
             run->renderer = createRenderer(ro, run->error);
             if (run->renderer) {
