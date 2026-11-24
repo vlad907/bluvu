@@ -32,6 +32,11 @@ MEDIA-SERVER. To redo them later (new UI, real venue names), ask Claude to recap
 | endpoints | `endpoints.jpg` | Three PCs online and in step, a new PC waiting for *Set up* |
 | updates | `updates.jpg` | Settings → Updates, every PC up to date, *Update everything* |
 | (spare) | `sources-layers-still.jpg` | Inputs view still, for social posts |
+| `audio.jpg` | Settings → Audio with three demo zones (bar, patio, back room). The zones were added on a demo engine; the Mac can't play sound, so no level meters move |
+| `gallery-3.jpg` | Close-up of the left side's tilted screens in the editor, one selected (stands in for a photo) |
+| `gallery-4.jpg` | The whole inside-bar wall in the editor (stands in for the bezel close-up photo) |
+| `control-hardware.jpg` | The wall with the one-click preset strip under it (stands in for a Stream Deck photo) |
+| `og-image.jpg` | 1200×630 link preview: the hero frame, the stand-in logo and the headline |
 
 Note: the editor's own title bar still says **Mosaic**. If the product is Bluvu, rename it in the
 editor (`mosaic-engine/ui`) before the next recapture.
@@ -56,11 +61,10 @@ the wall; a tidy reshoot would help there too.
 
 | # | File | Type | Pri | What to capture |
 |---|---|---|---|---|
-| 4 | `og-image.jpg` | Image, **1200×630** | **P1** | Link preview card. Claude can make it from #1 or #3 plus the logo. |
 | 5 | `sync-slowmo.mp4` + `.jpg` | Phone video (slow-mo) | P3 | Optional: a 120/240 fps close-up of the counters matching. Feature 05 now uses `test-pattern.mp4`; swap it in there if you shoot this. |
-| 6 | `control-hardware.jpg` | Photo, 3:2 | P2 | Stream Deck / Companion page or touch panel in a hand behind the bar, wall blurred behind. |
-| 8 | `gallery-3.jpg` | Photo | P2 | Side screens close: tilted / portrait 43" and 24". |
-| 9 | `gallery-4.jpg` | Photo (wide tile, 2:1) | P2 | Close-up of a bezel line where one picture crosses two screens cleanly. |
+| 6 | `control-hardware.jpg` | Photo, 3:2 | P2, replaces the editor stand-in | Stream Deck / Companion page or touch panel in a hand behind the bar, wall blurred behind. |
+| 8 | `gallery-3.jpg` | Photo | P2, replaces the editor stand-in | Side screens close: tilted / portrait 43" and 24". |
+| 9 | `gallery-4.jpg` | Photo (wide tile, 2:1) | P2, replaces the editor stand-in | Close-up of a bezel line where one picture crosses two screens cleanly. |
 
 ## Products page (`products.html`)
 
@@ -89,7 +93,7 @@ These features only run on Windows, so they couldn't be captured on the Mac. Tak
 
 | File | Pri | What |
 |---|---|---|
-| `audio.png` | P2 | Settings → Audio: named zones (bar, patio, …) with source, volume, mute |
+| `audio.jpg` | P3 | Optional retake on Windows with real devices and moving level meters; a demo shot is in place |
 | (optional) `monitor.png` | P3 | Monitor view with real NDI outputs and the real GPU |
 
 ## Brand and words
