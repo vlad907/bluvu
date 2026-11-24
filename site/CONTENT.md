@@ -97,8 +97,8 @@ These features only run on Windows, so they couldn't be captured on the Mac. Tak
 |---|---|---|
 | Blue Arc Networks link / logo | P2 | The hero says "Brought to you by Blue Arc Networks" and the footer credits it. Send the company's URL and logo to link them. |
 | Logo (SVG) | **P1** | A wordmark and a square mark. The site uses a stand-in 2×2 tile mark; send `logo.svg` and `logo-mark.svg` and I'll wire them in (and redo `favicon.svg`). |
-| Contact email | **P1** | The *Book a demo* form and footer use `hello@bluvu.example`. A real address, or a form service (Formspree, Tally, HubSpot) for the form. |
-| Domain | **P1** | e.g. `bluvu.com` / `bluvu.io`. Needed for hosting and the share links. |
+| Contact email | **P1** | The *Book a demo* form and footer use `hello@bluvu.video`. Set it up in Cloudflare Email Routing (forward to your inbox), or use a form service (Formspree, Tally, HubSpot) for the form. |
+| Domain | Done | `bluvu.video`, on Cloudflare (DNS and hosting). |
 | Pricing model | **P1** | FAQ "How is it priced?" is a placeholder. Per site, per screen, subscription, or "contact us". |
 | Testimonial | P2 | One quote from the venue: name, role, venue, city (with their OK to be named). The *In the wild* section has a placeholder. |
 | Venue name / logo use | P2 | Permission to name the venue and show its photos. |

@@ -7,10 +7,9 @@
     "directory": ".",
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
-  }
-  // Custom domain: added once bluvu.video is on this Cloudflare account.
-  // "routes": [
-  //   { "pattern": "bluvu.video", "custom_domain": true },
-  //   { "pattern": "www.bluvu.video", "custom_domain": true }
-  // ]
+  },
+  "routes": [
+    { "pattern": "bluvu.video", "custom_domain": true },
+    { "pattern": "www.bluvu.video", "custom_domain": true }
+  ]
 }
