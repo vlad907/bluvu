@@ -746,7 +746,16 @@ void Engine::updateSources(const Layout& layout, const std::set<std::string>& ne
                 if (s.signalLost && fallbackFor(layout, s.cfg)) st["showing"] = "fallback image";
             } else {
                 InputFrame f;
-                if (s.rx->acquireLatest(f)) {
+                if (s.rx->acquireLatest(f) && !needed.count(id)) {
+                    // Not on screen (switched off, covered, or off the canvas): the frame is taken so
+                    // the signal stays known, but not copied to the GPU. Every canvas has every input
+                    // in its list, and copying them all cost each one gigabytes a second.
+                    s.seenW = f.width;
+                    s.seenH = f.height;
+                    s.rx->release(f);
+                    s.gotFrame = true;
+                    s.lastFrameAt = now;
+                } else if (f.data) {
                     bool uyvy = f.uyvy && f.width % 2 == 0;
                     if (f.width != s.w || f.height != s.h || uyvy != (s.packed[0] != 0)) {
                         // New resolution or format: replace the textures (in-flight
@@ -772,20 +781,23 @@ void Engine::updateSources(const Layout& layout, const std::set<std::string>& ne
                     } else {
                         renderer_.uploadBGRA(s.tex[s.current], f.data, f.stride);
                     }
+                    s.seenW = f.width;
+                    s.seenH = f.height;
                     s.rx->release(f);
                     s.hasFrame = true;
+                    s.gotFrame = true;
                     s.lastFrameAt = now;
                 }
-                s.signalLost = s.hasFrame ? now - s.lastFrameAt > kSignalLostAfter : now - s.createdAt > kNoFirstFrameAfter;
+                s.signalLost = s.gotFrame ? now - s.lastFrameAt > kSignalLostAfter : now - s.createdAt > kNoFirstFrameAfter;
                 st["signal"] = s.signalLost ? "lost" : "ok";
                 if (s.signalLost && fallbackFor(layout, s.cfg)) st["showing"] = "fallback image";
-                st["status"] = s.rx->connected() ? "ok" : (s.hasFrame ? "no signal (holding last frame)" : "waiting for source");
+                st["status"] = s.rx->connected() ? "ok" : (s.gotFrame ? "no signal (holding last frame)" : "waiting for source");
                 st["inputFps"] = s.rx->inputFps();
                 st["framesReceived"] = s.rx->framesReceived();
                 if (double sent = s.rx->sentFps(); sent > 0) st["sentFps"] = sent;
                 st["framesDropped"] = s.rx->framesDropped();
-                st["width"] = s.w;
-                st["height"] = s.h;
+                st["width"] = s.seenW;
+                st["height"] = s.seenH;
             }
         } else if (s.cfg.type == SourceType::Video) {
             if (!s.video && !s.cfg.playlist.empty() && plainName(s.cfg.playlist) && now - s.playlistTried > std::chrono::seconds(2)) {

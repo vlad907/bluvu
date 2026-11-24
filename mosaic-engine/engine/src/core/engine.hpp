@@ -78,7 +78,9 @@ private:
         int texCount = 0, current = 0;
         TexId packed[3] = {0, 0, 0};  // UYVY input: the frames as uploaded (half width), unpacked into tex[]
         int w = 0, h = 0;
-        bool hasFrame = false;
+        bool hasFrame = false;   // a frame is in its texture (it can be drawn)
+        bool gotFrame = false;   // a frame has arrived, drawn or not (inputs that aren't on screen aren't copied to the GPU)
+        int seenW = 0, seenH = 0;  // size of the newest frame that arrived
         bool patternDrawn = false;  // test pattern: texture holds a drawn frame
         std::vector<uint8_t> pending;  // image: decoded pixels waiting for upload
         bool hasAlpha = false;         // image: has transparent pixels (drawn blended)

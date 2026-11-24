@@ -726,6 +726,18 @@ with tempfile.TemporaryDirectory() as tmp:
         pause(1.5)
         got = bars_of(frame("capu-ndi"))
         check(bars_match(got, 6), f"a UYVY source is unpacked to the right colours ({got})")
+        # An input nothing shows is not copied to the GPU, but its signal stays known and its
+        # picture is back as soon as something shows it again.
+        call("DELETE", "/api/outputs/capu-ndi")
+        call("PATCH", "/api/sources/capu", {"enabled": False})
+        pause(4)
+        hid = next(x for x in json.loads(get("/api/metrics")[1])["sources"] if x["id"] == "capu")
+        check(hid.get("signal") == "ok" and hid.get("width") == 1280, f"an input that isn't on screen still reports its signal and size ({hid.get('signal')}, {hid.get('width')}x{hid.get('height')})")
+        call("PATCH", "/api/sources/capu", {"enabled": True})
+        call("POST", "/api/outputs", {"id": "capu-ndi", "name": "Capture UYVY (NDI)", "source": "capu", "crop": {"x": 0, "y": 0, "w": 1280, "h": 720}, "width": 1280, "height": 720, "pixelFormat": "bgra"})
+        pause(1.5)
+        got = bars_of(frame("capu-ndi"))
+        check(bars_match(got, 6), "and its picture is back when it is shown again")
         call("DELETE", "/api/outputs/capu-ndi")
         call("DELETE", "/api/sources/capu")
 
