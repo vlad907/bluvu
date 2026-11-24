@@ -45,6 +45,8 @@ editor (`mosaic-engine/ui`) before the next recapture.
 | `gallery-1.jpg` | IMG_3102 | Wide shot of the wall and bar |
 | `gallery-2.jpg` | IMG_3107 | Guests at a table with the wall playing |
 | `gallery-6.jpg` | IMG_3102 | The editor on a laptop at the bar |
+| `test-pattern.mp4` + `.jpg` | IMG_3103 | The frame-counter test pattern across the whole wall (5 s), in feature 05 |
+| `gallery-5.jpg` | rack photo | Crop of the switches and patch panels (the NovaStar splicer is left out) |
 
 The hero is cropped from a portrait clip, so it's 1080 px wide. A landscape reshoot (tripod, wall
 switching presets, lights down) would look sharper. The IMG_3102 wide shot shows a ladder and loose cables under
@@ -55,11 +57,10 @@ the wall; a tidy reshoot would help there too.
 | # | File | Type | Pri | What to capture |
 |---|---|---|---|---|
 | 4 | `og-image.jpg` | Image, **1200×630** | **P1** | Link preview card. Claude can make it from #1 or #3 plus the logo. |
-| 5 | `sync-slowmo.mp4` + `.jpg` | Phone video (slow-mo) | P2 | Test pattern with the frame counter across the 2×2 and the side PCs, at 120/240 fps, counters matching. |
+| 5 | `sync-slowmo.mp4` + `.jpg` | Phone video (slow-mo) | P3 | Optional: a 120/240 fps close-up of the counters matching. Feature 05 now uses `test-pattern.mp4`; swap it in there if you shoot this. |
 | 6 | `control-hardware.jpg` | Photo, 3:2 | P2 | Stream Deck / Companion page or touch panel in a hand behind the bar, wall blurred behind. |
 | 8 | `gallery-3.jpg` | Photo | P2 | Side screens close: tilted / portrait 43" and 24". |
 | 9 | `gallery-4.jpg` | Photo (wide tile, 2:1) | P2 | Close-up of a bezel line where one picture crosses two screens cleanly. |
-| 10 | `gallery-5.jpg` | Photo (wide tile) | P3 | The hardware: media server, receiving PCs, rack. Tidy cables. |
 
 ## Products page (`products.html`)
 
