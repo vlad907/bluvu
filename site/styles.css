@@ -78,8 +78,11 @@ p { margin: 0; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .hero-points { list-style: none; padding: 0; margin: 32px 0 0; display: flex; flex-wrap: wrap; gap: 10px 22px; color: var(--faint); font-size: .9rem; }
 .hero-points li::before { content: "✓"; color: var(--ok); margin-right: 8px; font-weight: 700; }
-.hero-media { perspective: 1600px; }
-.slot-hero { transform: rotateY(-8deg) rotateX(3deg); box-shadow: 0 40px 120px -30px rgba(47,127,247,.45), 0 0 0 1px var(--border-strong); transition: transform .6s ease; }
+.hero-media { perspective: 1600px; position: relative; }
+/* A steady hover area a bit larger than the tilted video, so the edge that sticks out
+   while tilted doesn't flip the hover on and off as the video straightens. */
+.hero-media::before { content: ""; position: absolute; inset: -48px; }
+.slot-hero { position: relative; will-change: transform; transform: rotateY(-8deg) rotateX(3deg); box-shadow: 0 40px 120px -30px rgba(47,127,247,.45), 0 0 0 1px var(--border-strong); transition: transform .6s ease; }
 .hero-media:hover .slot-hero { transform: none; }
 
 /* ---------- strip ---------- */
