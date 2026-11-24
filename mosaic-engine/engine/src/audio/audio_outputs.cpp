@@ -44,6 +44,7 @@ struct AudioOutputs::Live {
         int p = pair.load(), m = mono.load();
         for (int i = 0; i < frames; ++i) {
             float a = l[i] * g, b = r[i] * g;
+            if (m > 0) a = b = 0.5f * (a + b);  // the meter shows what's sent: one mixed channel
             pl = std::max(pl, std::fabs(a));
             pr = std::max(pr, std::fabs(b));
             placeAudioFrame(out + static_cast<size_t>(i) * channels, channels, p, m, a, b);
@@ -149,6 +150,10 @@ json AudioOutputs::status() const {
             sourceConnected = src.rx != nullptr && src.rx->connected();
             sourceChannels = src.rx ? src.rx->channels() : 0;
         }
+        // What's sent to the device: left and right, or the one mixed channel of a mono output.
+        json levels = json::array({db(live.peakL.exchange(0))});
+        float right = live.peakR.exchange(0);
+        if (o->cfg.monoChannel == 0) levels.push_back(db(right));
         list.push_back({{"id", id},
                         {"device", o->stream->deviceName()},
                         {"channels", ch},
@@ -158,7 +163,7 @@ json AudioOutputs::status() const {
                         {"sourceChannels", sourceChannels},
                         {"sourceError", sourceError},
                         {"sourceName", src.in ? src.in->deviceName() : ""},
-                        {"levelDb", {db(live.peakL.exchange(0)), db(live.peakR.exchange(0))}},
+                        {"levelDb", levels},
                         {"delayMs", effectiveDelayMs(o->cfg, wallDelayMs_)},
                         {"offByMs", live.errorMs.load()},
                         {"jumps", live.jumps.load()},

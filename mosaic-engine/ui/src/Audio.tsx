@@ -5,8 +5,8 @@ import { TextField } from "./Inspector";
 // A level meter: two bars (left, right), -60..0 dBFS, red near the top.
 function Meter({ db }: { db?: number[] }) {
   return (
-    <div className="audio-meter" title={db ? `${db[0]} / ${db[1]} dBFS` : undefined}>
-      {[0, 1].map((i) => {
+    <div className="audio-meter" title={db ? `${db.join(" / ")} dBFS${db.length === 1 ? " (mono)" : ""}` : undefined}>
+      {(db ?? [-100, -100]).map((_, i) => {
         const v = db?.[i] ?? -100;
         return (
           <span key={i}>

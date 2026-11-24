@@ -34,7 +34,7 @@ export interface AudioInfo {
     error: string;
     sourceConnected: boolean;
     sourceError: string;
-    levelDb: number[]; // left, right peak since the last read (dBFS; -100 = silence)
+    levelDb: number[]; // left, right peak since the last read (dBFS; -100 = silence); one value for a mono output
     delayMs: number;
     offByMs: number;
     jumps: number; // times it had to skip (a glitch)
