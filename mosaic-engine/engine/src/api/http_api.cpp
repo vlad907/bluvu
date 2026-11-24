@@ -28,6 +28,7 @@
 #include "core/engine.hpp"
 #include "core/layout_store.hpp"
 #include "io/video_io.hpp"
+#include "util/cpu_usage.hpp"
 #include "util/image.hpp"
 #include "util/paths.hpp"
 
@@ -1711,6 +1712,24 @@ struct HttpApi::Impl {
             saveEngineSettings();
             if (NdiSystem* ndi = canvases.ndi()) ndi->setGpuDecode(ndiGpuDecode);
             sendJson(res, {{"gpuDecode", ndiGpuDecode}, {"available", canvases.ndi() != nullptr}});
+        }));
+        // Where the engine's CPU time goes: {cores, machinePercent, enginePercent, threads: [{name,
+        // threads, percent}]}, busiest first; "percent" is of one core. Measures for ?ms= (default
+        // 1000, 200..5000) before answering. Unnamed threads are grouped by the DLL they started in.
+        s.Get("/api/system/cpu", guard([](const httplib::Request& req, httplib::Response& res) {
+            int ms = 1000;
+            try {
+                if (req.has_param("ms")) ms = std::stoi(req.get_param_value("ms"));
+            } catch (const std::exception&) {
+            }
+            CpuUsage u = measureCpu(std::clamp(ms, 200, 5000));
+            json threads = json::array();
+            for (auto& g : u.groups)
+                if (g.percent >= 0.05) threads.push_back({{"name", g.name}, {"threads", g.threads}, {"percent", std::round(g.percent * 10.0) / 10.0}});
+            sendJson(res, {{"cores", u.cores},
+                           {"machinePercent", u.machinePercent < 0 ? json(nullptr) : json(std::round(u.machinePercent * 10.0) / 10.0)},
+                           {"enginePercent", std::round(u.enginePercent * 10.0) / 10.0},
+                           {"threads", threads}});
         }));
         s.Get("/api/system/decoders", guard([](const httplib::Request&, httplib::Response& res) {
             json list = json::array();

@@ -550,6 +550,13 @@ with tempfile.TemporaryDirectory() as tmp:
         check(len(restored["outputs"]) == 5 and not restored["walls"], "restoring the oldest version brings back the original layout")
         check(len(json.loads(get("/api/layouts/ci/history")[1])["history"]) == len(hist) + 1, "the replaced version is kept too")
 
+        print("CPU breakdown:", flush=True)
+        cpu = json.loads(get("/api/system/cpu?ms=300")[1])
+        check(cpu["cores"] >= 1 and 0 <= cpu["enginePercent"] <= 100, "the engine reports its share of the CPU")
+        if sys.platform == "win32":
+            names = [t["name"] for t in cpu["threads"]]
+            check(any(n.startswith("canvas ") for n in names), f"and which threads use it, by name ({names[:6]})")
+
         print("NDI|HX decoding setting:", flush=True)
         check(json.loads(get("/api/system/ndi")[1])["gpuDecode"] is False, "NDI|HX inputs are decoded on the CPU unless asked otherwise")
         check(call("PUT", "/api/system/ndi", {"gpuDecode": True})["gpuDecode"] is True, "GPU decoding can be switched on")

@@ -378,11 +378,24 @@ public:
         ComPtr<IDXGIDevice> dxgi;
         ComPtr<IDXGIAdapter> adapter;
         if (FAILED(device_.As(&dxgi)) || FAILED(dxgi->GetAdapter(&adapter))) return error = "no DXGI adapter", 0;
+        // The device's own adapter object only knows the monitors that were on when the engine
+        // started (a DXGI factory is a snapshot). Look the same GPU up afresh, by its LUID, so a
+        // monitor switched on later is found; the device's adapter is the fallback (WARP).
+        ComPtr<IDXGIAdapter> lookIn = adapter;
+        DXGI_ADAPTER_DESC mine{};
+        if (SUCCEEDED(adapter->GetDesc(&mine)))
+            for (auto& a : hardwareAdapters()) {
+                DXGI_ADAPTER_DESC1 d1{};
+                if (SUCCEEDED(a->GetDesc1(&d1)) && d1.AdapterLuid.LowPart == mine.AdapterLuid.LowPart && d1.AdapterLuid.HighPart == mine.AdapterLuid.HighPart) {
+                    lookIn = a;
+                    break;
+                }
+            }
         ComPtr<IDXGIOutput> output;
         DXGI_OUTPUT_DESC od{};
         for (UINT k = 0;; ++k) {
             ComPtr<IDXGIOutput> o;
-            if (adapter->EnumOutputs(k, &o) == DXGI_ERROR_NOT_FOUND) break;
+            if (lookIn->EnumOutputs(k, &o) == DXGI_ERROR_NOT_FOUND) break;
             DXGI_OUTPUT_DESC d{};
             if (SUCCEEDED(o->GetDesc(&d)) && d.AttachedToDesktop && narrow(d.DeviceName) == monitor) {
                 output = o;

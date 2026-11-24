@@ -19,6 +19,7 @@
 #include "core/engine.hpp"
 #include "core/layout_store.hpp"
 #include "io/video_io.hpp"
+#include "util/cpu_usage.hpp"
 #include "render/renderer.hpp"
 
 namespace mosaic {
@@ -124,6 +125,7 @@ int main(int argc, char** argv) {
     auto binDir = std::filesystem::weakly_canonical(std::filesystem::absolute(argv[0]), binEc).parent_path();
     HttpApi api(canvases, store, opt.ui, binDir);
     std::thread http([&] {
+        nameThread("http");
         if (!api.listen(opt.host, opt.port)) {
             std::cerr << "cannot listen on " << opt.host << ":" << opt.port << "\n";
             g_quit = true;

@@ -81,6 +81,7 @@ set(ENGINE_SOURCES
   engine/src/api/http_api.cpp
   engine/src/util/image.cpp
   engine/src/util/realtime.cpp
+  engine/src/util/cpu_usage.cpp
   engine/src/io/video_file.cpp
   engine/src/audio/audio_ring.cpp
   engine/src/audio/audio_outputs.cpp

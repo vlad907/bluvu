@@ -425,6 +425,7 @@ Across the whole source there's also:
 | GET | `/api/gpus` | the media server's GPUs, the monitors on each (with the `modes` each offers), and the canvases on each |
 | GET | `/api/capture` | capture devices, and the open ones (size, fps, viewers, error) |
 | GET / PUT | `/api/system/ndi` | `{"gpuDecode": bool}`: NDI\|HX inputs (H.264 / H.265 from encoder boxes) decoded on the GPU's video decoder instead of the CPU. Off by default; in the editor under Settings → Media |
+| GET | `/api/system/cpu` | where the engine's CPU time goes: `{cores, machinePercent, enginePercent, threads: [{name, threads, percent}]}`, busiest first (`percent` is of one core; unnamed threads are grouped by the DLL they started in). Measures for `?ms=` (default 1000) before answering |
 | GET | `/api/system/decoders` | Windows' video decoders per codec, and which are hardware (why a video decodes in software) |
 | GET | `/api/layouts` | saved layouts |
 | GET / DELETE | `/api/layouts/:id` | |

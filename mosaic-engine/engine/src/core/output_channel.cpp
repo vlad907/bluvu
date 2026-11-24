@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include "util/cpu_usage.hpp"
 #include "util/realtime.hpp"
 
 namespace mosaic {
@@ -69,6 +70,7 @@ void OutputChannel::replaceSink(std::unique_ptr<VideoSink> sink) {
 }
 
 void OutputChannel::run() {
+    nameThread("send " + ndiName);
     raiseThreadPriority(ThreadRole::Sender);
     int held = -1;  // slot the sink may still be reading (async NDI)
     for (;;) {

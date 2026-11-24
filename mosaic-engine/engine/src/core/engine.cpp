@@ -10,6 +10,7 @@
 #include <iostream>
 #include <set>
 
+#include "util/cpu_usage.hpp"
 #include "util/image.hpp"
 #include "util/paths.hpp"
 #include "util/realtime.hpp"
@@ -171,6 +172,7 @@ bool Engine::captureForTransition(int ms, Rect region) {
 // ---------------------------------------------------------------------------
 
 void Engine::loop() {
+    nameThread("canvas " + canvasId_);
     try {
         run();
     } catch (const std::exception& e) {

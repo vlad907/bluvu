@@ -26,6 +26,7 @@
 #include "audio/audio_ring.hpp"
 #include "core/metrics.hpp"
 #include "io/video_io.hpp"
+#include "util/cpu_usage.hpp"
 
 namespace mosaic {
 
@@ -145,6 +146,7 @@ public:
 
 private:
     void run() {
+        nameThread("ndi in " + name_);
         auto lastPerf = Clock::now();
         while (!stop_) {
             NDIlib_video_frame_v2_t v;
