@@ -9,9 +9,10 @@ copy, modify, build, distribute, sublicense or sell it. Use of Bluvu is permitte
 Bluvu End User License Agreement (legal/EULA.md) with a valid license from Blue Arc Networks, or
 under a separate written agreement with Blue Arc Networks.
 
-Third-party components keep their own licenses; see the notices that come with them (for example
-cpp-httplib, nlohmann/json, stb, Monocypher, React, and the NDI(R) SDK runtime, which is provided under
-Vizrt NDI AB's license). NDI(R) is a registered trademark of Vizrt NDI AB.
+Third-party components keep their own licenses: see THIRD_PARTY_NOTICES.txt (cpp-httplib,
+nlohmann/json, stb, Monocypher, React) and docs/THIRD_PARTY_LICENSES.md. The NDI(R) SDK runtime is
+provided under Vizrt NDI AB's license. NDI(R) is a registered trademark of Vizrt NDI AB.
+https://ndi.video/
 
 THE SOFTWARE IS PROVIDED "AS IS", EXCEPT AS STATED OTHERWISE IN THE EULA OR A WRITTEN AGREEMENT.
 

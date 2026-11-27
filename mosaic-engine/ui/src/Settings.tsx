@@ -299,7 +299,35 @@ export function SettingsPanel({ layout, onChanged, onError }: { layout: Layout; 
       <LicenseSection onError={onError} />
 
       <UpdatesSection onError={onError} />
+
+      <AboutSection />
     </>
+  );
+}
+
+// Settings → About: who makes Bluvu, and the attributions the third-party licenses ask for (the NDI SDK
+// license wants the trademark line and a link to ndi.video in the product; the full open-source
+// notices are THIRD_PARTY_NOTICES.txt, shipped with every copy).
+function AboutSection() {
+  return (
+    <section className="list">
+      <div className="list-head">
+        <h3>About</h3>
+      </div>
+      <small className="muted">
+        Bluvu © 2025–2026 Blue Arc Networks. All rights reserved. Used under the Bluvu End User License Agreement.
+      </small>
+      <small className="muted">
+        This product uses NDI® technology.{" "}
+        <a href="https://ndi.video/" target="_blank" rel="noreferrer">
+          ndi.video
+        </a>
+        . NDI® is a registered trademark of Vizrt NDI AB.
+      </small>
+      <small className="muted">
+        Includes open-source components (cpp-httplib, nlohmann/json, stb, Monocypher, React) under their own licenses: see THIRD_PARTY_NOTICES.txt in the Bluvu folder.
+      </small>
+    </section>
   );
 }
 

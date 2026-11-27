@@ -404,6 +404,12 @@ export function SourcesPanel({
             ))}
           </select>
         )}
+        {/* The NDI SDK license asks for a link to ndi.video wherever NDI is picked in the product. */}
+        <small className="muted">
+          <a href="https://ndi.video/" target="_blank" rel="noreferrer" title="NDI® is a registered trademark of Vizrt NDI AB">
+            About NDI®
+          </a>
+        </small>
       </div>
     </section>
   );

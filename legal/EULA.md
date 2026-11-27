@@ -16,9 +16,12 @@ your **plan** (number of screens and the features listed for that plan when you 
 1.2. The **receiver software** (the Mosaic Receiver and the video-wall dashboard on receiving PCs) may be
 used on any number of PCs, without a license fee, only together with a licensed Bluvu media server.
 
-1.3. A **trial** license lets you evaluate Bluvu for 14 days, once per media server, for evaluation only.
+1.3. A **complimentary** license we issue by hand (for example to a partner venue) works like a paid
+one but has no term: it doesn't expire, until we end it under 4.3 or by agreement.
 
-1.4. Bluvu is licensed, not sold. We keep all rights not expressly granted.
+1.4. A **trial** license lets you evaluate Bluvu for 14 days, once per media server, for evaluation only.
+
+1.5. Bluvu is licensed, not sold. We keep all rights not expressly granted.
 
 ## 2. What you may not do
 
@@ -41,13 +44,13 @@ asking us. The old server stops being licensed when the new one is activated.
 4.1. Subscriptions renew automatically each term until cancelled. You can cancel at any time; the
 license then runs to the end of the paid term.
 
-4.2. After the term ends there is a **30-day grace period**. After that, until you renew: **your walls
+4.2. After a paid term ends there is a **30-day grace period** (trials have none). After that, until you renew: **your walls
 keep showing what they show and come back after a restart with their saved layout**, day-to-day
 operation (recalling presets and scenes, switching streams, blanking screens, the control API for these)
 keeps working, and changing the setup, adding screens and getting updates pause.
 
 4.3. We may end this agreement if you materially breach it and don't fix the breach within 30 days of
-notice. Sections 2, 6, 7 and 9 survive.
+notice. Sections 2, 6, 7, 8 and 9 survive.
 
 ## 5. Updates and support
 
@@ -76,8 +79,15 @@ license in the 12 months before the claim.
 
 ## 8. Third-party components
 
-Bluvu includes third-party components under their own licenses (listed in the software's notices), and
-uses the NDI® SDK runtime under Vizrt NDI AB's license. NDI® is a registered trademark of Vizrt NDI AB.
+8.1. Bluvu includes open-source components under their own licenses, listed with their license texts in
+THIRD_PARTY_NOTICES.txt, which comes with the software. Those licenses apply to those components, and
+nothing in this agreement limits rights they give you.
+
+8.2. Bluvu uses the NDI® SDK runtime, provided under Vizrt NDI AB's license. You may not reverse
+engineer, decompile, modify or separate the NDI runtime from Bluvu, or use it except as part of Bluvu.
+Vizrt NDI AB gives no warranty and has no liability to you for it. [Check and complete from the NDI
+SDK License Agreement in the SDK folder: it may require more terms here. See
+docs/THIRD_PARTY_LICENSES.md.] NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video/
 
 ## 9. General
 

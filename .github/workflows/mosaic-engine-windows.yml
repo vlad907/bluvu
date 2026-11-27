@@ -49,6 +49,9 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
+      - name: Third-party notices up to date (THIRD_PARTY_NOTICES.txt)
+        run: python tools/make_notices.py --check
+
       - name: Pixel checks on Direct3D 11 (WARP)
         env:
           MOSAIC_SOFTWARE_GPU: "1"
